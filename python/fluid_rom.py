@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*-coding:utf-8 -*-
 '''
-@File    :   Ma798_SingelViewROM/python/fluid_rm.py
+@File    :   Aa798_SingelViewROA/python/fluid_rm.py
 @Time    :   2023/11/16 9:42:17
 @Author  :   Harley Hanes 
 @Version :   1.0
@@ -12,83 +12,198 @@
 
 import unittest
 import numpy as np
+import scipy 
 
-def H2(Phi, W=1.0, verbosity=0):
+
+
+    
+def MakeFluidMatrices(Phi):
     """
-    Computes the matrices of inner products (Phi_i Phi_j,Phi_k) for a given Phi matrix.
+    Incomplete
+    Args:
+    
+    
+    Returns:
+    """
+    #Compute derivatives
+    dPhidx = ...
+    d2Phidx = ...
+    d3Phidx= ...
+    d4Phidx=...
+    
+    #Make matrices
+    h2_dhdx=InnerProd3rdOrder(Phi, Phi,Phi,dPhidx)
+    h2_dhdx2=InnerProd4thOrder(Phi, Phi,Phi,dPhidx,dPhidx)
+    h2_dhdx_d3hdx=InnerProd4thOrder(Phi, Phi,Phi,dPhidx,d3Phidx)
+    
+    h3_d2hdx = InnerProd4thOrder(Phi, Phi,Phi,Phi,d2Phidx)
+    h3_d4hdx = InnerProd4thOrder(Phi, Phi,Phi,Phi,d4Phidx)
+    
+    return {"h2_dhdx": h2_dhdx,"h2_dhdx2": h2_dhdx2, "h2_dhdx_d3hdx": h2_dhdx_d3hdx, "h3_d2hdx": h3_d2hdx, "h3_d4hdx": h3_d4hdx}
+    
+    
+def ROMdydt (t,a,ThirdOrders,FourthOrders):
+    
+    # Implementation of Formula dydt_i=-aj*ak*al*[ThirdOrders_ijkl+am*(FourthOrders_ijklm)] (using einstein's notation)
+    dydt=np.dot(FourthOrders,a)
+    dydt = np.dot(ThirdOrders+dydt,a)
+    dydt= np.dot(dydt,a)
+    dydt = np.dot(dydt,a)
+    
+    return dydt
+
+def SolveROM(matrices,a0,t_input, method='RK45',verbosity =0):
+    h2_dhdx= matrices["h2_dhdx"]
+    h2_dhdx2= matrices["h2_dhdx2"]
+    h2_dhdx_d3hdx= matrices["h2_dhdx_d3hdx"]
+    h3_d2hdx= matrices["h3_d2hdx"]
+    h3_d4hdx= matrices["h3_d4hdx"]
+    ThirdOrders=-(3/2*h2_dhdx)
+    FourthOrders=-(3*h2_dhdx2+3*h2_dhdx_d3hdx+h3_d2hdx+h3_d4hdx)
+    if verbosity > 0:
+        print("h2_dhdx.size: ", h2_dhdx.size)
+        print("FourthOrders.size: ", h2_dhdx.size)
+        
+    #Check t_span is 1D array
+    
+    if t_input.size<2 or t_input.ndim!=1:
+        raise Exception("Need a 1D array of at least size 2 for t_input")
+    elif t_input.size==2:
+        t_span=t_input
+        scipy_outputs = scipy.integrate.solve_ivp(ROMdydt,
+                                                a0,
+                                                t_span,
+                                                args = (ThirdOrders, FourthOrders),
+                                                method = method)
+    else:
+        t_eval=t_input
+        t_span =[t_input[0], t_input[-1]]
+        scipy_outputs = scipy.integrate.solve_ivp(ROMdydt,
+                                                a0,
+                                                t_span,
+                                                args = (ThirdOrders, FourthOrders),
+                                                method = method,
+                                                t_eval=t_eval)
+    
+    return(scipy_outputs.t, scipy_outputs.y, scipy_outputs)
+    
+    
+   
+def InnerProd4thOrder(Ar, Al1,Al2,Al3,Al4,  W=1.0, verbosity =0):
+    """
+    Computes the matrices of inner products (Ar_m, Al1_i Al2_j Al3_k Al4_l).
 
     Args:
-        Phi: A numpy array of size n by k, where n is the number of data points and k is the number of modes.
+        Ar: RHS inner product matrix,  numpy array of size n by k.
+        Al1: First LHS inner product matrix,  numpy array of size n by k.
+        Al2: Second LHS inner product matrix,  numpy array of size n by k.
+        Al3: Third LHS inner product matrix,  numpy array of size n by k.
+        Al4: Fourth LHS inner product matrix,  numpy array of size n by k.
         W: Optional. The weight parameter to be passed to WeightedNorm. Default is 1.0.
         verbosity: Optional. The verbosity level to be passed to WeightedNorm. Default is 0.
 
     Returns:
-        A numpy array of size k by k by k, where the ijk element is the output of WeightedNorm(Phi[:,i]*Phi[:,j],Phi[:,k],W).
+        A numpy array of size k by k by k by k by k, where the ijklm element is the output of WeightedNorm(Al1[:,j]*Al2[:,k]*Al3[:,l]*Al4[:,m], Ar[:,i],W).
     """
 
     if verbosity > 0:
-        #Print size of Phi
-        print("Phi.shape: ", Phi.shape)
+        #Print size of A
+        print("Ar.shape: ", Ar.shape)
+        print("Al1.shape: ", Al1.shape)
+        print("Al2.shape: ", Al2.shape)
+        print("Al3.shape: ", Al3.shape)
+        print("Al4.shape: ", Al4.shape)
     if verbosity > 1:
         #Print head of Phi
-        print("Phi[:,:5]: ", Phi[:,:5])
+        print("Ar[:,:5]: ", Ar[:,:5])
+        print("Al1[:,:5]: ", Al1[:,:5])
+        print("Al2[:,:5]: ", Al2[:,:5])
+        print("Al3[:,:5]: ", Al3[:,:5])
+        print("Al4[:,:5]: ", Al4[:,:5])
         
     # Check that Phi is a numpy array of size n by k.
-    CheckNumpy(Phi)
+    CheckNumpy(Ar)
+    CheckNumpy(Al1,dim=Ar.shape)
+    CheckNumpy(Al2,dim=Ar.shape)
+    CheckNumpy(Al3,dim=Ar.shape)
+    CheckNumpy(Al4,dim=Ar.shape)
 
     # Compute the h2 matrix.
-    mat = np.zeros((Phi.shape[1], Phi.shape[1], Phi.shape[1]))
-    for i in range(Phi.shape[1]):
-        for j in range(Phi.shape[1]):
-            for k in range(Phi.shape[1]):
-                mat[i, j, k] = WeightedNorm(Phi[:, i] * Phi[:, j], Phi[:, k], W=W, verbosity=verbosity)
+    mat = np.zeros((Al1.shape[1], Al2.shape[1], Al3.shape[1],Al4.shape[1], Ar.shape[1]))
+    for i in range(Ar.shape[1]):
+        for j in range(Al1.shape[1]):
+            for k in range(Al2.shape[1]):
+                for l in range(Al3.shape[1]):
+                    for m in range(Al4.shape[1]):
+                        mat[i, j, k, l, m] = WeightedNorm(Al1[:, j] * Al2[:, k]* Al3[:, l]* Al4[:, m], Ar[:, i], W=W, verbosity=verbosity)
 
     return mat
 
+def InnerProd3rdOrder(Ar, Al1,Al2,Al3, W=1.0, verbosity =0):
+    """
+    Computes the matrices of inner products (Ar_l, Al1_i Al2_j Al3_k).
 
+    Args:
+        Ar: RHS inner product matrix,  numpy array of size n by k.
+        Al1: First LHS inner product matrix,  numpy array of size n by k.
+        Al2: Second LHS inner product matrix,  numpy array of size n by k.
+        Al3: Third LHS inner product matrix,  numpy array of size n by k.
+        W: Optional. The weight parameter to be passed to WeightedNorm. Default is 1.0.
+        verbosity: Optional. The verbosity level to be passed to WeightedNorm. Default is 0.
+
+    Returns:
+        A numpy array of size k by k by k by k, where the ijkl element is the output of WeightedNorm(Al1[:,j]*Al2[:,k]*Al3[:,l], Ar[:,i],W).
+    """
+
+    if verbosity > 0:
+        #Print size of A
+        print("Ar.shape: ", Ar.shape)
+        print("Al1.shape: ", Al1.shape)
+        print("Al2.shape: ", Al2.shape)
+        print("Al3.shape: ", Al3.shape)
+    if verbosity > 1:
+        #Print head of Phi
+        print("Ar[:,:5]: ", Ar[:,:5])
+        print("Al1[:,:5]: ", Al1[:,:5])
+        print("Al2[:,:5]: ", Al2[:,:5])
+        print("Al3[:,:5]: ", Al3[:,:5])
         
-class TestH2(unittest.TestCase):
-    def test_H2(self):
-        # Generate a random Phi matrix
-        np.random.seed(0)
-        n = 10
-        k = 3
-        Phi = np.random.rand(n, k)
+    # Check that Phi is a numpy array of size n by k.
+    CheckNumpy(Ar)
+    CheckNumpy(Al1,dim=Ar.shape)
+    CheckNumpy(Al2,dim=Ar.shape)
+    CheckNumpy(Al3,dim=Ar.shape)
 
-        # Compute the H2 matrix
-        mat = H2(Phi)
+    # Compute the h2 matrix.
+    mat = np.zeros((Ar.shape[1], Al1.shape[1], Al2.shape[1], Al3.shape[1]))
+    for i in range(Ar.shape[1]):
+        for j in range(Al1.shape[1]):
+            for k in range(Al2.shape[1]):
+                for l in range(Al3.shape[1]):
+                    mat[i, j, k, l] = WeightedNorm(Al1[:, j] * Al2[:, k]* Al3[:, l], Ar[:, i], W=W, verbosity=verbosity)
 
-        # Check the dimensions of the H2 matrix
-        self.assertEqual(mat.shape, (k, k, k))
-
-        # Check that the H2 matrix is symmetric
-        for i in range(k):
-            for j in range(k):
-                for l in range(k):
-                    self.assertAlmostEqual(mat[i, j, l], mat[j, i, l])
+    return mat
                     
-                    
-    def test_H2_with_Phi_2_1_1_0(self):
+class TestInnerProd3rdOrder(unittest.TestCase):
+
+    def test_InnerProd3rdOrder_with_Phi_2_1_1_0(self):
         # Create a Phi matrix
         Phi = np.array([[2, 1], [1, 0]])
-
+        I = np.array([[1, 0], [0, 1]])
         # Compute the H2 matrix
-        mat = H2(Phi)
+        mat = InnerProd3rdOrder(Phi, Phi,Phi,I)
 
         # Check the dimensions of the H2 matrix
-        self.assertEqual(mat.shape, (2, 2, 2))
-
-        # Check that the H2 matrix is symmetric
-        for i in range(2):
-            for j in range(2):
-                for l in range(2):
-                    self.assertAlmostEqual(mat[i, j, l], mat[j, i, l])
+        self.assertEqual(mat.shape, (2, 2, 2, 2))
 
         # Check that mat is equal to [[[9, 4], [4, 2]], [[4, 2], [2, 1]]]
-        self.assertEqual(np.allclose(mat, [[[9, 4], [4, 2]], [[4, 2], [2, 1]]]), True)
-                    
-    
-
+        a=np.array([[[[8,4],[1,0]],
+                     [[4,2],[0,0]]],
+                    [[[4,2],[0,0]],
+                     [[2,1],[0,0]]]])
+        
+        
+        np.testing.assert_array_equal(mat,np.transpose(a,axes = [3,0,1,2]))
 
 
 
@@ -152,8 +267,7 @@ class TestWeightedNorm(unittest.TestCase):
         v1 = np.array([1, 2, 3])
         v2 = np.array([4, 5, 6])
         W = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        verbosity = 1
-        result = WeightedNorm(v1, v2, W, verbosity)
+        result = WeightedNorm(v1, v2, W)
         self.assertEqual(result, 32)
 
     def test_invalid_inputs(self):
@@ -161,13 +275,13 @@ class TestWeightedNorm(unittest.TestCase):
         v2 = [4, 5, 6]
         W = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
         verbosity = 1
-        self.assertRaises(TypeError, WeightedNorm, v1, v2, W, verbosity)
+        self.assertRaises(TypeError, WeightedNorm, v1, v2, W)
 
         v1 = np.array([1, 2, 3])
         v2 = np.array([4, 5, 6])
         W = np.array([[1, 0, 0], [0, 1, 0]])
         verbosity = 1
-        self.assertRaises(ValueError, WeightedNorm, v1, v2, W, verbosity)
+        self.assertRaises(ValueError, WeightedNorm, v1, v2, W)
 
     def test_valid_inputs_w_1(self):
         v1 = np.array([1, 2, 3])
