@@ -17,7 +17,7 @@ import scipy
 
 
     
-def MakeFluidMatrices(Phi):
+def MakeFluidMatrices(phi,dx):
     """
     Incomplete
     Args:
@@ -26,31 +26,132 @@ def MakeFluidMatrices(Phi):
     Returns:
     """
     #Compute derivatives
-    dPhidx = ...
-    d2Phidx = ...
-    d3Phidx= ...
-    d4Phidx=...
+    dPhidx = ComputeDeriv(phi, dx, deriv=1)
+    d2Phidx = ComputeDeriv(phi, dx, deriv=2)
+    d3Phidx= ComputeDeriv(phi, dx, deriv=3)
+    d4Phidx= ComputeDeriv(phi, dx, deriv=4)
     
     #Make matrices
-    h2_dhdx=InnerProd3rdOrder(Phi, Phi,Phi,dPhidx)
-    h2_dhdx2=InnerProd4thOrder(Phi, Phi,Phi,dPhidx,dPhidx)
-    h2_dhdx_d3hdx=InnerProd4thOrder(Phi, Phi,Phi,dPhidx,d3Phidx)
+    h2_dhdx=InnerProd3rdOrder(phi, phi,phi,dPhidx)
+    h2_dhdx2=InnerProd4thOrder(phi, phi,phi,dPhidx,dPhidx)
+    h2_dhdx_d3hdx=InnerProd4thOrder(phi, phi,phi,dPhidx,d3Phidx)
     
-    h3_d2hdx = InnerProd4thOrder(Phi, Phi,Phi,Phi,d2Phidx)
-    h3_d4hdx = InnerProd4thOrder(Phi, Phi,Phi,Phi,d4Phidx)
+    h3_d2hdx = InnerProd4thOrder(phi, phi,phi,phi,d2Phidx)
+    h3_d4hdx = InnerProd4thOrder(phi, phi,phi,phi,d4Phidx)
     
     return {"h2_dhdx": h2_dhdx,"h2_dhdx2": h2_dhdx2, "h2_dhdx_d3hdx": h2_dhdx_d3hdx, "h3_d2hdx": h3_d2hdx, "h3_d4hdx": h3_d4hdx}
     
     
+def ComputeDeriv(phi,dx,deriv = 1,verbosity =0):
+    """
+    Computes the first-order finite difference approximation of the derivative for each column of a numpy array.
+    
+    Args:
+        phi: Input numpy array of size n by k.
+        dx: Input float for x distances between points
+        
+    Returns:
+        A numpy array of size n by k, representing the derivative approximation for each column.
+    """
+    CheckNumpy(phi)
+    
+    if deriv ==1:
+        phi_deriv = (np.roll(phi,-1,axis=0)-np.roll(phi,1,axis=0))/(2*dx)
+    elif deriv == 2:
+        phi_deriv = (np.roll(phi,-1,axis=0)-2*phi+np.roll(phi,1,axis=0))/(dx**2)
+    elif deriv == 3:
+        phi_deriv = (np.roll(phi,-2,axis=0)-2*np.roll(phi,-1,axis=0)
+                     +2*np.roll(phi,1,axis=0)-np.roll(phi,2,axis=0))/(2*dx**3)
+    elif deriv == 4:
+        phi_deriv = (np.roll(phi,-2,axis=0)-4*np.roll(phi,-1,axis=0)+6*phi
+                     -4*np.roll(phi,1,axis=0)+np.roll(phi,2,axis=0))/(dx**4)
+    
+    return phi_deriv
+
+
+class TestComputeDeriv(unittest.TestCase):
+    #Functions are written for periodic BC so instead only check interior points
+    def test_FirstDeriv_exact_zero(self):
+        x = np.linspace(0,1,10)
+        dfdx = 2*np.ones(x.shape)
+        dx=x[1]-x[0]
+        phi=2*x+3
+        dfdx_approx = ComputeDeriv(phi,dx,deriv=1)
+        #print("phi, roll 1", np.roll(phi,1,axis=0))
+        #print("phi, roll -1", np.roll(phi,-1,axis=0))
+        np.testing.assert_array_almost_equal(dfdx[1:-1],dfdx_approx[1:-1])
+        
+    def test_SecondDeriv_exact_zero(self):
+        x = np.linspace(0,1,10)
+        phi=2*x**2+3
+        dfdx = 4*np.ones(x.shape)
+        dx=x[1]-x[0]
+        dfdx_approx = ComputeDeriv(phi,dx,deriv=2)
+        #print("phi, roll 1", np.roll(phi,1,axis=0))
+        #print("phi, roll -1", np.roll(phi,-1,axis=0))
+        np.testing.assert_array_almost_equal(dfdx[1:-1],dfdx_approx[1:-1])
+    
+    def test_SecondDeriv_exact_nonzero(self):
+        x = np.linspace(0,1,10)
+        phi=2*x**3+3
+        dfdx = 3*2*2*x
+        dx=x[1]-x[0]
+        dfdx_approx = ComputeDeriv(phi,dx,deriv=2)
+        #print("phi, roll 1", np.roll(phi,1,axis=0))
+        #print("phi, roll -1", np.roll(phi,-1,axis=0))
+        np.testing.assert_array_almost_equal(dfdx[1:-1],dfdx_approx[1:-1])
+        
+    def test_ThirdDeriv_exact_zero(self):
+        x = np.linspace(0,1,10)
+        phi=2*x**3+3
+        dfdx = 2*3*2*np.ones(x.shape)
+        dx=x[1]-x[0]
+        dfdx_approx = ComputeDeriv(phi,dx,deriv=3)
+        #print("phi, roll 1", np.roll(phi,1,axis=0))
+        #print("phi, roll -1", np.roll(phi,-1,axis=0))
+        np.testing.assert_array_almost_equal(dfdx[2:-2],dfdx_approx[2:-2])
+        
+    def test_ThirdDeriv_exact_zero(self):
+        x = np.linspace(0,1,10)
+        phi=2*x**4+3
+        dfdx = 2*4*3*2*x
+        dx=x[1]-x[0]
+        dfdx_approx = ComputeDeriv(phi,dx,deriv=3)
+        #print("phi, roll 1", np.roll(phi,1,axis=0))
+        #print("phi, roll -1", np.roll(phi,-1,axis=0))
+        np.testing.assert_array_almost_equal(dfdx[2:-2],dfdx_approx[2:-2])
+        
+    def test_FourthDeriv_exact_zero(self):
+        x = np.linspace(0,1,10)
+        phi=2*x**4+3
+        dfdx = 2*4*3*2*np.ones(x.shape)
+        dx=x[1]-x[0]
+        dfdx_approx = ComputeDeriv(phi,dx,deriv=4)
+        #print("phi, roll 1", np.roll(phi,1,axis=0))
+        #print("phi, roll -1", np.roll(phi,-1,axis=0))
+        np.testing.assert_array_almost_equal(dfdx[2:-2],dfdx_approx[2:-2])
+        
+    def test_FourthDeriv_exact(self):
+        x = np.linspace(0,1,10)
+        phi=2*x**5+3
+        dfdx = 2*5*4*3*2*x
+        dx=x[1]-x[0]
+        dfdx_approx = ComputeDeriv(phi,dx,deriv=4)
+        #print("phi, roll 1", np.roll(phi,1,axis=0))
+        #print("phi, roll -1", np.roll(phi,-1,axis=0))
+        np.testing.assert_array_almost_equal(dfdx[2:-2],dfdx_approx[2:-2])
+  
+      
 def ROMdydt (t,a,ThirdOrders,FourthOrders):
+    #Note: No verbosity checks in this function for efficiency since it is called by the ODE solver
     
     # Implementation of Formula dydt_i=-aj*ak*al*[ThirdOrders_ijkl+am*(FourthOrders_ijklm)] (using einstein's notation)
     dydt=np.dot(FourthOrders,a)
     dydt = np.dot(ThirdOrders+dydt,a)
     dydt= np.dot(dydt,a)
     dydt = np.dot(dydt,a)
-    
     return dydt
+
 
 def SolveROM(matrices,a0,t_input, method='RK45',verbosity =0):
     h2_dhdx= matrices["h2_dhdx"]
@@ -65,7 +166,6 @@ def SolveROM(matrices,a0,t_input, method='RK45',verbosity =0):
         print("FourthOrders.size: ", h2_dhdx.size)
         
     #Check t_span is 1D array
-    
     if t_input.size<2 or t_input.ndim!=1:
         raise Exception("Need a 1D array of at least size 2 for t_input")
     elif t_input.size==2:
@@ -84,11 +184,9 @@ def SolveROM(matrices,a0,t_input, method='RK45',verbosity =0):
                                                 args = (ThirdOrders, FourthOrders),
                                                 method = method,
                                                 t_eval=t_eval)
-    
     return(scipy_outputs.t, scipy_outputs.y, scipy_outputs)
+
     
-    
-   
 def InnerProd4thOrder(Ar, Al1,Al2,Al3,Al4,  W=1.0, verbosity =0):
     """
     Computes the matrices of inner products (Ar_m, Al1_i Al2_j Al3_k Al4_l).
@@ -114,14 +212,14 @@ def InnerProd4thOrder(Ar, Al1,Al2,Al3,Al4,  W=1.0, verbosity =0):
         print("Al3.shape: ", Al3.shape)
         print("Al4.shape: ", Al4.shape)
     if verbosity > 1:
-        #Print head of Phi
+        #Print head of phi
         print("Ar[:,:5]: ", Ar[:,:5])
         print("Al1[:,:5]: ", Al1[:,:5])
         print("Al2[:,:5]: ", Al2[:,:5])
         print("Al3[:,:5]: ", Al3[:,:5])
         print("Al4[:,:5]: ", Al4[:,:5])
         
-    # Check that Phi is a numpy array of size n by k.
+    # Check that phi is a numpy array of size n by k.
     CheckNumpy(Ar)
     CheckNumpy(Al1,dim=Ar.shape)
     CheckNumpy(Al2,dim=Ar.shape)
@@ -138,6 +236,7 @@ def InnerProd4thOrder(Ar, Al1,Al2,Al3,Al4,  W=1.0, verbosity =0):
                         mat[i, j, k, l, m] = WeightedNorm(Al1[:, j] * Al2[:, k]* Al3[:, l]* Al4[:, m], Ar[:, i], W=W, verbosity=verbosity)
 
     return mat
+
 
 def InnerProd3rdOrder(Ar, Al1,Al2,Al3, W=1.0, verbosity =0):
     """
@@ -162,13 +261,13 @@ def InnerProd3rdOrder(Ar, Al1,Al2,Al3, W=1.0, verbosity =0):
         print("Al2.shape: ", Al2.shape)
         print("Al3.shape: ", Al3.shape)
     if verbosity > 1:
-        #Print head of Phi
+        #Print head of phi
         print("Ar[:,:5]: ", Ar[:,:5])
         print("Al1[:,:5]: ", Al1[:,:5])
         print("Al2[:,:5]: ", Al2[:,:5])
         print("Al3[:,:5]: ", Al3[:,:5])
         
-    # Check that Phi is a numpy array of size n by k.
+    # Check that phi is a numpy array of size n by k.
     CheckNumpy(Ar)
     CheckNumpy(Al1,dim=Ar.shape)
     CheckNumpy(Al2,dim=Ar.shape)
@@ -183,15 +282,16 @@ def InnerProd3rdOrder(Ar, Al1,Al2,Al3, W=1.0, verbosity =0):
                     mat[i, j, k, l] = WeightedNorm(Al1[:, j] * Al2[:, k]* Al3[:, l], Ar[:, i], W=W, verbosity=verbosity)
 
     return mat
+
                     
 class TestInnerProd3rdOrder(unittest.TestCase):
 
     def test_InnerProd3rdOrder_with_Phi_2_1_1_0(self):
-        # Create a Phi matrix
-        Phi = np.array([[2, 1], [1, 0]])
+        # Create a phi matrix
+        phi = np.array([[2, 1], [1, 0]])
         I = np.array([[1, 0], [0, 1]])
         # Compute the H2 matrix
-        mat = InnerProd3rdOrder(Phi, Phi,Phi,I)
+        mat = InnerProd3rdOrder(phi, phi,phi,I)
 
         # Check the dimensions of the H2 matrix
         self.assertEqual(mat.shape, (2, 2, 2, 2))
@@ -204,8 +304,6 @@ class TestInnerProd3rdOrder(unittest.TestCase):
         
         
         np.testing.assert_array_equal(mat,np.transpose(a,axes = [3,0,1,2]))
-
-
 
 
 def WeightedNorm(v1,v2, W=1, verbosity = 0):
@@ -238,8 +336,6 @@ def CheckNumpy(v, dim=None):
     if dim is not None:
         if v.shape != dim:
             raise ValueError("v must have shape {}".format(dim))
-
-
 
 
 class TestCheckNumpy(unittest.TestCase):
