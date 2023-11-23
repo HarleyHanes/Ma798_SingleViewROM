@@ -13,11 +13,12 @@
 import unittest
 import numpy as np
 import scipy 
+import plots
 
 
 
     
-def MakeFluidMatrices(phi,dx):
+def MakeFluidMatrices(phi,dx,verbosity=0):
     """
     Incomplete
     Args:
@@ -39,9 +40,60 @@ def MakeFluidMatrices(phi,dx):
     h3_d2hdx = InnerProd4thOrder(phi, phi,phi,phi,d2Phidx)
     h3_d4hdx = InnerProd4thOrder(phi, phi,phi,phi,d4Phidx)
     
+    if verbosity>1:
+        print("h2_dhdx: ", h2_dhdx)
+        print("h2_dhdx2: ", h2_dhdx2)
+        print("h2_dhdx_d3hdx: ", h2_dhdx_d3hdx)
+        print("h3_d2hdx: ", h3_d2hdx)
+        print("h3_d4hdx: ", h3_d4hdx)
+    
     return {"h2_dhdx": h2_dhdx,"h2_dhdx2": h2_dhdx2, "h2_dhdx_d3hdx": h2_dhdx_d3hdx, "h3_d2hdx": h3_d2hdx, "h3_d4hdx": h3_d4hdx}
     
-    
+def CheckDydt(temporal, matrices, times, folder="",verbosity=0, plot = False):
+    h2_dhdx= matrices["h2_dhdx"]
+    h2_dhdx2= matrices["h2_dhdx2"]
+    h2_dhdx_d3hdx= matrices["h2_dhdx_d3hdx"]
+    h3_d2hdx= matrices["h3_d2hdx"]
+    h3_d4hdx= matrices["h3_d4hdx"]
+    ThirdOrders=-(3/2*h2_dhdx)
+    FourthOrders=-(3*h2_dhdx2+3*h2_dhdx_d3hdx+h3_d2hdx+h3_d4hdx)
+    dydt = np.empty(temporal.shape)
+    for i in range(temporal.shape[0]):
+        dydt[i,:] = ROMdydt(0,temporal[i,:],ThirdOrders,FourthOrders)
+        
+    # Can get approximate derivatives from finite difference on temporal modes
+    # Note: skip outer t_steps for analysis since we're using periodic deriv calc
+    dydt_anticipated = ComputeDeriv(temporal, times[1]-times[0], deriv = 1, verbosity =0)
+    dydt_diff = (dydt[1:-1,:]-dydt_anticipated[1:-1,:])/dydt[1:-1,:]
+
+    if verbosity > 0:
+        print("dydt.shape: ", dydt.shape)
+        print("dydt Mean Abs Difference: ", np.mean(np.abs(dydt_diff), axis = 0))
+        print("dydt Difference Variance: ", np.var((dydt_diff), axis = 0))
+    elif verbosity > 1:
+        print("dydt.shape: ", dydt.shape)
+        print("dydt[0:10,:]: ", dydt[0:10,:])
+        print("dydt_anticipated[0:10,:]: ", dydt_anticipated[0:10,:])
+        
+    if plot:
+        plots.plot_temporal(dydt_diff, times[1:-1],dydt_diff.shape[1],
+                            ylabel = "$\\frac{da}{dt}$",
+                            xlabel = "$t$",
+                            title = "Computed and Anticipated $\\frac{da}{dt} Difference",
+                            save_path = folder + "dydt_diff.png")
+        plots.plot_temporal(dydt_anticipated, times,dydt_anticipated.shape[1],
+                            ylabel = "$\\frac{da}{dt}$",
+                            xlabel = "$t$",
+                            title = "Anticipated $\\frac{da}{dt}",
+                            save_path = folder + "dydt_anticipated.png")
+        plots.plot_temporal(dydt, times,dydt.shape[1],
+                            ylabel = "$\\frac{da}{dt}$",
+                            xlabel = "$t$",
+                            title = "Computed $\\frac{da}{dt}",
+                            save_path = folder + "dydt.png")
+        
+        
+        
 def ComputeDeriv(phi,dx,deriv = 1,verbosity =0):
     """
     Computes the first-order finite difference approximation of the derivative for each column of a numpy array.
@@ -145,7 +197,18 @@ class TestComputeDeriv(unittest.TestCase):
 def ROMdydt (t,a,ThirdOrders,FourthOrders):
     #Note: No verbosity checks in this function for efficiency since it is called by the ODE solver
     
+
     # Implementation of Formula dydt_i=-aj*ak*al*[ThirdOrders_ijkl+am*(FourthOrders_ijklm)] (using einstein's notation)
+    # n_modes=a.size
+    # dydt = np.zeros(a.shape)
+    # for i in range(n_modes):
+    #     for j in range(n_modes):
+    #         for k in range(n_modes):
+    #             for l in range(n_modes):
+    #                 dydt[i]+= ThirdOrders[i,j,k,l]*a[j]*a[k]*a[l]
+    #                 for m in range(n_modes):
+    #                     dydt[i]+= FourthOrders[i,j,k,l,m]*a[j]*a[k]*a[l]*a[m]
+    
     dydt=np.dot(FourthOrders,a)
     dydt = np.dot(ThirdOrders+dydt,a)
     dydt= np.dot(dydt,a)
@@ -153,7 +216,7 @@ def ROMdydt (t,a,ThirdOrders,FourthOrders):
     return dydt
 
 
-def SolveROM(matrices,a0,t_input, method='RK45',verbosity =0):
+def SolveROM(matrices,t_input,a0, method='RK45',verbosity =0):
     h2_dhdx= matrices["h2_dhdx"]
     h2_dhdx2= matrices["h2_dhdx2"]
     h2_dhdx_d3hdx= matrices["h2_dhdx_d3hdx"]
@@ -162,32 +225,40 @@ def SolveROM(matrices,a0,t_input, method='RK45',verbosity =0):
     ThirdOrders=-(3/2*h2_dhdx)
     FourthOrders=-(3*h2_dhdx2+3*h2_dhdx_d3hdx+h3_d2hdx+h3_d4hdx)
     if verbosity > 0:
-        print("h2_dhdx.size: ", h2_dhdx.size)
-        print("FourthOrders.size: ", h2_dhdx.size)
+        print("ThirdOrders.shape: ", ThirdOrders.shape)
+        print("FourthOrders.shape: ", FourthOrders.shape)
+        print("a0.shape: ", a0.shape)
+        print("t_input.shape: ", t_input.shape)
+        print("t_input.size: ", t_input.size)
         
     #Check t_span is 1D array
     if t_input.size<2 or t_input.ndim!=1:
         raise Exception("Need a 1D array of at least size 2 for t_input")
     elif t_input.size==2:
         t_span=t_input
+        if verbosity >0:
+            print("t_span.shape: ",t_span.shape)
         scipy_outputs = scipy.integrate.solve_ivp(ROMdydt,
-                                                a0,
                                                 t_span,
+                                                a0,
                                                 args = (ThirdOrders, FourthOrders),
                                                 method = method)
     else:
         t_eval=t_input
         t_span =[t_input[0], t_input[-1]]
+        if verbosity >0:
+            print("t_eval.shape: ",t_eval.shape)
+            print("t_span: ",t_span)
         scipy_outputs = scipy.integrate.solve_ivp(ROMdydt,
-                                                a0,
                                                 t_span,
+                                                a0,
                                                 args = (ThirdOrders, FourthOrders),
                                                 method = method,
                                                 t_eval=t_eval)
     return(scipy_outputs.t, scipy_outputs.y, scipy_outputs)
 
     
-def InnerProd4thOrder(Ar, Al1,Al2,Al3,Al4,  W=1.0, verbosity =0):
+def InnerProd4thOrder(Ar, Al1,Al2,Al3,Al4,  type = "L1", W=1.0, verbosity =0):
     """
     Computes the matrices of inner products (Ar_m, Al1_i Al2_j Al3_k Al4_l).
 
@@ -233,12 +304,12 @@ def InnerProd4thOrder(Ar, Al1,Al2,Al3,Al4,  W=1.0, verbosity =0):
             for k in range(Al2.shape[1]):
                 for l in range(Al3.shape[1]):
                     for m in range(Al4.shape[1]):
-                        mat[i, j, k, l, m] = WeightedNorm(Al1[:, j] * Al2[:, k]* Al3[:, l]* Al4[:, m], Ar[:, i], W=W, verbosity=verbosity)
+                        mat[i, j, k, l, m] = WeightedNorm(Al1[:, j] * Al2[:, k]* Al3[:, l]* Al4[:, m], Ar[:, i], type = type, W=W, verbosity=verbosity)
 
     return mat
 
 
-def InnerProd3rdOrder(Ar, Al1,Al2,Al3, W=1.0, verbosity =0):
+def InnerProd3rdOrder(Ar, Al1,Al2,Al3, type = "L1", W=1.0, verbosity =0):
     """
     Computes the matrices of inner products (Ar_l, Al1_i Al2_j Al3_k).
 
@@ -279,7 +350,7 @@ def InnerProd3rdOrder(Ar, Al1,Al2,Al3, W=1.0, verbosity =0):
         for j in range(Al1.shape[1]):
             for k in range(Al2.shape[1]):
                 for l in range(Al3.shape[1]):
-                    mat[i, j, k, l] = WeightedNorm(Al1[:, j] * Al2[:, k]* Al3[:, l], Ar[:, i], W=W, verbosity=verbosity)
+                    mat[i, j, k, l] = WeightedNorm(Al1[:, j] * Al2[:, k]* Al3[:, l], Ar[:, i], W=W, type=type,verbosity=verbosity)
 
     return mat
 
@@ -291,7 +362,7 @@ class TestInnerProd3rdOrder(unittest.TestCase):
         phi = np.array([[2, 1], [1, 0]])
         I = np.array([[1, 0], [0, 1]])
         # Compute the H2 matrix
-        mat = InnerProd3rdOrder(phi, phi,phi,I)
+        mat = InnerProd3rdOrder(phi, phi,phi,I,type="L1")
 
         # Check the dimensions of the H2 matrix
         self.assertEqual(mat.shape, (2, 2, 2, 2))
@@ -306,7 +377,7 @@ class TestInnerProd3rdOrder(unittest.TestCase):
         np.testing.assert_array_equal(mat,np.transpose(a,axes = [3,0,1,2]))
 
 
-def WeightedNorm(v1,v2, W=1, verbosity = 0):
+def WeightedNorm(v1,v2, type = "L1", W=1, verbosity = 0):
     #Check Inputs v1, v2 are numpy arrays, print error message if they are not
     CheckNumpy(v1)
     CheckNumpy(v2,v1.shape)
@@ -325,8 +396,11 @@ def WeightedNorm(v1,v2, W=1, verbosity = 0):
     elif (W.shape[0] != v1.size) & (W.shape[1]!= v2.size) :
         raise ValueError("W must have dimensions equal to v1 X v2")
                          
-                         
-    norm = np.dot(np.dot(v1, W), v2)
+    if type == "L2":
+        norm = np.sqrt(np.dot(np.dot(v1**2, W), v2**2))
+    elif type == "L1":
+        norm = np.dot(np.dot(v1, W), v2)
+        
     return norm
 
 
@@ -363,28 +437,25 @@ class TestWeightedNorm(unittest.TestCase):
         v1 = np.array([1, 2, 3])
         v2 = np.array([4, 5, 6])
         W = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        result = WeightedNorm(v1, v2, W)
+        result = WeightedNorm(v1, v2, W=W, type = "L1", verbosity = 1)
         self.assertEqual(result, 32)
 
     def test_invalid_inputs(self):
         v1 = np.array([1, 2, 3])
         v2 = [4, 5, 6]
         W = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        verbosity = 1
-        self.assertRaises(TypeError, WeightedNorm, v1, v2, W)
+        self.assertRaises(TypeError, WeightedNorm, v1, v2, W=W)
 
         v1 = np.array([1, 2, 3])
         v2 = np.array([4, 5, 6])
         W = np.array([[1, 0, 0], [0, 1, 0]])
-        verbosity = 1
-        self.assertRaises(ValueError, WeightedNorm, v1, v2, W)
+        self.assertRaises(ValueError, WeightedNorm, v1, v2, W=W)
 
     def test_valid_inputs_w_1(self):
         v1 = np.array([1, 2, 3])
         v2 = np.array([4, 5, 6])
         W = 1.0
-        verbosity = 1
-        result = WeightedNorm(v1, v2, W, verbosity)
+        result = WeightedNorm(v1, v2, W=W, type ="L1", verbosity=1)
         self.assertEqual(result, 32)
 
 if __name__ == '__main__':
