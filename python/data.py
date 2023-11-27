@@ -6,11 +6,9 @@ from plots import *
 import matplotlib.pyplot as plt
 
 
-def load(location,plot = False,verbosity=0):
+def load(location, time_steps=np.arange(0,202), plot = False,verbosity=0):
     if verbosity>0:
         print("Loading Data")
-    tstart = 0
-    tend = 201
 
     xs = np.loadtxt(location+'xs.dat')
     times = np.loadtxt(location+'times.dat')
@@ -24,8 +22,8 @@ def load(location,plot = False,verbosity=0):
 
     L = xs[-1]+dx
 
-    data = data[:,tstart:tend]
-    times = times[tstart:tend]
+    data = data[:,time_steps]
+    times = times[time_steps]
 
     # POD
 

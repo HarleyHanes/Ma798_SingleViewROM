@@ -40,16 +40,16 @@ def MakeFluidMatrices(phi,dx,verbosity=0):
     h3_d2hdx = InnerProd4thOrder(phi, phi,phi,phi,d2Phidx)
     h3_d4hdx = InnerProd4thOrder(phi, phi,phi,phi,d4Phidx)
     
-    if verbosity>1:
-        print("h2_dhdx: ", h2_dhdx)
-        print("h2_dhdx2: ", h2_dhdx2)
-        print("h2_dhdx_d3hdx: ", h2_dhdx_d3hdx)
-        print("h3_d2hdx: ", h3_d2hdx)
-        print("h3_d4hdx: ", h3_d4hdx)
+    # if verbosity>1:
+    #     print("h2_dhdx: ", h2_dhdx)
+    #     print("h2_dhdx2: ", h2_dhdx2)
+    #     print("h2_dhdx_d3hdx: ", h2_dhdx_d3hdx)
+    #     print("h3_d2hdx: ", h3_d2hdx)
+    #     print("h3_d4hdx: ", h3_d4hdx)
     
     return {"h2_dhdx": h2_dhdx,"h2_dhdx2": h2_dhdx2, "h2_dhdx_d3hdx": h2_dhdx_d3hdx, "h3_d2hdx": h3_d2hdx, "h3_d4hdx": h3_d4hdx}
     
-def CheckDydt(temporal, matrices, times, folder="",verbosity=0, plot = False):
+def CheckDydt(temporal, phi, matrices, times, folder="",verbosity=0, plot = False):
     h2_dhdx= matrices["h2_dhdx"]
     h2_dhdx2= matrices["h2_dhdx2"]
     h2_dhdx_d3hdx= matrices["h2_dhdx_d3hdx"]
@@ -58,6 +58,8 @@ def CheckDydt(temporal, matrices, times, folder="",verbosity=0, plot = False):
     ThirdOrders=-(3/2*h2_dhdx)
     FourthOrders=-(3*h2_dhdx2+3*h2_dhdx_d3hdx+h3_d2hdx+h3_d4hdx)
     dydt = np.empty(temporal.shape)
+    orthonormal_deviation = np.linalg.norm(InnerProd1stOrder(phi,phi)-np.identity(phi.shape[1]), ord = 'fro')
+    print("Phi deviation form orthonormality: ", orthonormal_deviation)
     for i in range(temporal.shape[0]):
         dydt[i,:] = ROMdydt(0,temporal[i,:],ThirdOrders,FourthOrders)
         
@@ -70,26 +72,26 @@ def CheckDydt(temporal, matrices, times, folder="",verbosity=0, plot = False):
         print("dydt.shape: ", dydt.shape)
         print("dydt Mean Abs Difference: ", np.mean(np.abs(dydt_diff), axis = 0))
         print("dydt Difference Variance: ", np.var((dydt_diff), axis = 0))
-    elif verbosity > 1:
-        print("dydt.shape: ", dydt.shape)
+    if verbosity > 1:
         print("dydt[0:10,:]: ", dydt[0:10,:])
         print("dydt_anticipated[0:10,:]: ", dydt_anticipated[0:10,:])
+        print("dydt_diff[0:10,:]: ", dydt_diff[0:10,:])
         
     if plot:
         plots.plot_temporal(dydt_diff, times[1:-1],dydt_diff.shape[1],
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
-                            title = "Computed and Anticipated $\\frac{da}{dt} Difference",
+                            title = "Computed and Anticipated $\\frac{da}{dt}$ Difference",
                             save_path = folder + "dydt_diff.png")
-        plots.plot_temporal(dydt_anticipated, times,dydt_anticipated.shape[1],
+        plots.plot_temporal(dydt_anticipated[1:-1], times[1:-1],dydt_anticipated.shape[1],
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
-                            title = "Anticipated $\\frac{da}{dt}",
+                            title = "Anticipated $\\frac{da}{dt}$",
                             save_path = folder + "dydt_anticipated.png")
-        plots.plot_temporal(dydt, times,dydt.shape[1],
+        plots.plot_temporal(dydt[1:-1], times[1:-1],dydt.shape[1],
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
-                            title = "Computed $\\frac{da}{dt}",
+                            title = "Computed $\\frac{da}{dt}$",
                             save_path = folder + "dydt.png")
         
         
@@ -213,10 +215,11 @@ def ROMdydt (t,a,ThirdOrders,FourthOrders):
     dydt = np.dot(ThirdOrders+dydt,a)
     dydt= np.dot(dydt,a)
     dydt = np.dot(dydt,a)
+    dydt= dydt*np.array([75.9058, 76.1897, 38.74538, 38.80335])
     return dydt
 
 
-def SolveROM(matrices,t_input,a0, method='RK45',verbosity =0):
+def SolveROM(matrices,t_input,a0, method='LSODA',verbosity =0):
     h2_dhdx= matrices["h2_dhdx"]
     h2_dhdx2= matrices["h2_dhdx2"]
     h2_dhdx_d3hdx= matrices["h2_dhdx_d3hdx"]
@@ -354,6 +357,39 @@ def InnerProd3rdOrder(Ar, Al1,Al2,Al3, type = "L1", W=1.0, verbosity =0):
 
     return mat
 
+def InnerProd1stOrder(Ar, Al, type = "L1", W=1.0, verbosity =0):
+    """
+    Computes the matrices of inner products (Ar_i, Al_j).
+
+    Args:
+        Ar: RHS inner product matrix,  numpy array of size n by k.
+        Al: First LHS inner product matrix,  numpy array of size n by k.
+        W: Optional. The weight parameter to be passed to WeightedNorm. Default is 1.0.
+        verbosity: Optional. The verbosity level to be passed to WeightedNorm. Default is 0.
+
+    Returns:
+        A numpy array of size k by k by k by k, where the ijkl element is the output of WeightedNorm(Al1[:,j]*Al2[:,k]*Al3[:,l], Ar[:,i],W).
+    """
+
+    if verbosity > 0:
+        #Print size of A
+        print("Ar.shape: ", Ar.shape)
+        print("Al.shape: ", Al.shape)
+    if verbosity > 1:
+        #Print head of phi
+        print("Ar[:,:5]: ", Ar[:,:5])
+        print("Al[:,:5]: ", Al[:,:5])
+        
+    # Check that phi is a numpy array of size n by k.
+    CheckNumpy(Ar)
+    CheckNumpy(Al,dim=Ar.shape)
+    # Compute the h2 matrix.
+    mat = np.zeros((Ar.shape[1], Al.shape[1]))
+    for i in range(Ar.shape[1]):
+        for j in range(Al.shape[1]):
+                    mat[i, j] = WeightedNorm(Al[:, j], Ar[:, i], W=W, type=type,verbosity=verbosity)
+
+    return mat
                     
 class TestInnerProd3rdOrder(unittest.TestCase):
 
