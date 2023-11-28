@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 import scipy 
 import plots
+from POD import *
 
 
 
@@ -65,38 +66,39 @@ def CheckDydt(temporal, phi, matrices, times, folder="",verbosity=0, plot = Fals
         
     # Can get approximate derivatives from finite difference on temporal modes
     # Note: skip outer t_steps for analysis since we're using periodic deriv calc
-    dydt_anticipated = ComputeDeriv(temporal, times[1]-times[0], deriv = 1, verbosity =0)
-    dydt_diff = (dydt[1:-1,:]-dydt_anticipated[1:-1,:])/dydt[1:-1,:]
+    dydt_anticipated = ComputeDeriv(temporal, times[1]-times[0], deriv = 1, verbosity =0, periodic = False)
+    dydt_diff = (dydt_anticipated-dydt)/dydt
 
     if verbosity > 0:
         print("dydt.shape: ", dydt.shape)
+        print("dydt_diff[0,:]: ", dydt_diff[0,:])
         print("dydt Mean Abs Difference: ", np.mean(np.abs(dydt_diff), axis = 0))
-        print("dydt Difference Variance: ", np.var((dydt_diff), axis = 0))
+        print("dydt Difference Variance: ", np.var(np.abs(dydt_diff), axis = 0))
     if verbosity > 1:
         print("dydt[0:10,:]: ", dydt[0:10,:])
         print("dydt_anticipated[0:10,:]: ", dydt_anticipated[0:10,:])
         print("dydt_diff[0:10,:]: ", dydt_diff[0:10,:])
         
     if plot:
-        plots.plot_temporal(dydt_diff, times[1:-1],dydt_diff.shape[1],
+        plots.plot_temporal(dydt_diff, times,dydt_diff.shape[1],
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
-                            title = "Computed and Anticipated $\\frac{da}{dt}$ Difference",
+                            title = "ROM and Anticipated $\\frac{da}{dt}$ Difference",
                             save_path = folder + "dydt_diff.png")
-        plots.plot_temporal(dydt_anticipated[1:-1], times[1:-1],dydt_anticipated.shape[1],
+        plots.plot_temporal(dydt_anticipated, times,dydt_anticipated.shape[1],
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
                             title = "Anticipated $\\frac{da}{dt}$",
                             save_path = folder + "dydt_anticipated.png")
-        plots.plot_temporal(dydt[1:-1], times[1:-1],dydt.shape[1],
+        plots.plot_temporal(dydt, times,dydt.shape[1],
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
-                            title = "Computed $\\frac{da}{dt}$",
+                            title = "ROM $\\frac{da}{dt}$",
                             save_path = folder + "dydt.png")
         
         
         
-def ComputeDeriv(phi,dx,deriv = 1,verbosity =0):
+def ComputeDeriv(phi,dx,deriv = 1,verbosity =0, periodic = True):
     """
     Computes the first-order finite difference approximation of the derivative for each column of a numpy array.
     
@@ -110,7 +112,13 @@ def ComputeDeriv(phi,dx,deriv = 1,verbosity =0):
     CheckNumpy(phi)
     
     if deriv ==1:
-        phi_deriv = (np.roll(phi,-1,axis=0)-np.roll(phi,1,axis=0))/(2*dx)
+        if periodic:
+            phi_deriv = (np.roll(phi,-1,axis=0)-np.roll(phi,1,axis=0))/(2*dx)
+        else: 
+            phi_deriv = np.empty(phi.shape)
+            phi_deriv[1:-1,:] = ((np.roll(phi,-1,axis=0)-np.roll(phi,1,axis=0))/(2*dx))[1:-1]
+            phi_deriv[0,:] = (-3*phi[0,:]+4*phi[1,:]-phi[2,:])/(2*dx)
+            phi_deriv[-1,:] = (3*phi[-1,:]-4*phi[-2,:]+phi[-3,:])/(2*dx)
     elif deriv == 2:
         phi_deriv = (np.roll(phi,-1,axis=0)-2*phi+np.roll(phi,1,axis=0))/(dx**2)
     elif deriv == 3:
@@ -215,7 +223,8 @@ def ROMdydt (t,a,ThirdOrders,FourthOrders):
     dydt = np.dot(ThirdOrders+dydt,a)
     dydt= np.dot(dydt,a)
     dydt = np.dot(dydt,a)
-    dydt= dydt*np.array([75.9058, 76.1897, 38.74538, 38.80335])
+    dydt= dydt*np.array([ 85.84279745, 122.51640322])
+    #dydt= dydt*np.array([[73.61683858,  81.73726709,  37.10363703,  39.46519242, 2, 2.08332944]])
     return dydt
 
 

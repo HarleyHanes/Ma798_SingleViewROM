@@ -20,14 +20,15 @@ import data
 
 #Load data
 location = "Ma798_SingleViewROM/Fiber_Data/"
-(phi,a,times,xs)= data.load(location, time_steps=np.arange(100,202), verbosity=1)
+(phi,a,times,xs)= data.load(location, time_steps=np.arange(60,202), verbosity=1)
 a0 = a[0,:]
 #Form ROM
 matrices = fluid_rom.MakeFluidMatrices(phi,xs[1]-xs[0], verbosity=2)
-fluid_rom.CheckDydt(a,phi, matrices,times, folder = "Ma798_SingleViewROM/figures/CheckDydt/", verbosity =2, plot = True)
+fluid_rom.CheckDydt(a,phi, matrices,times, folder = "Ma798_SingleViewROM/figures/CheckDydt/", verbosity=2, plot = True)
 #Solve ROM
 (t,a_rom,solver_output)=fluid_rom.SolveROM(matrices,times,a0, verbosity=1)
 a_rom=a_rom.transpose()
+a=a[0:a_rom.shape[0],:]
 #Compute ROM Error
 total_error = np.linalg.norm(a-a_rom)/np.linalg.norm(a)
 time_error = np.sum(((a-a_rom)/a)**2, axis =1)
@@ -42,6 +43,6 @@ plots.plot_temporal(a_rom,t,a_rom.shape[1],xlabel="t",ylabel="a", title="a(t) Co
 plots.plot_temporal(a,t,a_rom.shape[1],xlabel="t",ylabel="a", title="True a(t)", 
                     save_path= "Ma798_SingleViewROM/figures/ROMoutputs/a_true")
 
-plots.plot_error(a,a_rom,t,logy=True, title="Absolute ROM Error",xlabel='t', ylabel='Error', 
+plots.plot_error(a[1:,:],a_rom[1:,],t[1:],logy=True, title="Relative ROM Error",xlabel='t', ylabel='Error', 
                     save_path= "Ma798_SingleViewROM/figures/ROMoutputs/ROM_error")
 

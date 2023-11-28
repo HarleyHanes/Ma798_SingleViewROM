@@ -27,9 +27,9 @@ def load(location, time_steps=np.arange(0,202), plot = False,verbosity=0):
 
     # POD
 
-    k = 4 # number of modes
+    k = 2 # number of modes
 
-    spatial, temporal = POD(data,k)
+    spatial, temporal = POD(data,k, verbosity=verbosity)
 
     if plot:
         # Visualize Data

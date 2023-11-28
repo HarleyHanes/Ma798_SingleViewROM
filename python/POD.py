@@ -1,4 +1,5 @@
 import numpy as np
+from plots import *
 
 def POD(A, modes,verbosity=0):
 
@@ -14,7 +15,8 @@ def POD(A, modes,verbosity=0):
     msA = A - averages
     
     M,S,Vt =np.linalg.svd(msA, full_matrices = False)
-
+    if verbosity == 1:
+        plot_singular_values(S)
     spatial = M[:,:modes]
     temporal = np.dot(spatial.T,msA)
 
