@@ -26,7 +26,9 @@ a0 = a[0,:]
 matrices = fluid_rom.MakeFluidMatrices(phi,xs[1]-xs[0], verbosity=2)
 fluid_rom.CheckDydt(a,phi, matrices,times, folder = "Ma798_SingleViewROM/figures/CheckDydt/", verbosity=2, plot = True)
 #Solve ROM
-(t,a_rom,solver_output)=fluid_rom.SolveROM(matrices,times,a0, verbosity=1)
+scaling = fluid_rom.ComputeDydtScaling(phi, a, matrices,times)
+print("scaling: ", scaling)
+(t,a_rom,solver_output)=fluid_rom.SolveROM(matrices,times,a0, dydt_scaling = scaling, verbosity=1)
 a_rom=a_rom.transpose()
 a=a[0:a_rom.shape[0],:]
 #Compute ROM Error

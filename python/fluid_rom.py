@@ -19,7 +19,7 @@ from POD import *
 
 
     
-def MakeFluidMatrices(phi,dx,verbosity=0):
+def MakeFluidMatrices(spatial,dx,verbosity=0):
     """
     Incomplete
     Args:
@@ -28,18 +28,18 @@ def MakeFluidMatrices(phi,dx,verbosity=0):
     Returns:
     """
     #Compute derivatives
-    dPhidx = ComputeDeriv(phi, dx, deriv=1)
-    d2Phidx = ComputeDeriv(phi, dx, deriv=2)
-    d3Phidx= ComputeDeriv(phi, dx, deriv=3)
-    d4Phidx= ComputeDeriv(phi, dx, deriv=4)
+    dPhidx = ComputeDeriv(spatial, dx, deriv=1)
+    d2Phidx = ComputeDeriv(spatial, dx, deriv=2)
+    d3Phidx= ComputeDeriv(spatial, dx, deriv=3)
+    d4Phidx= ComputeDeriv(spatial, dx, deriv=4)
     
     #Make matrices
-    h2_dhdx=InnerProd3rdOrder(phi, phi,phi,dPhidx)
-    h2_dhdx2=InnerProd4thOrder(phi, phi,phi,dPhidx,dPhidx)
-    h2_dhdx_d3hdx=InnerProd4thOrder(phi, phi,phi,dPhidx,d3Phidx)
+    h2_dhdx=InnerProd3rdOrder(spatial, spatial,spatial,dPhidx)
+    h2_dhdx2=InnerProd4thOrder(spatial, spatial,spatial,dPhidx,dPhidx)
+    h2_dhdx_d3hdx=InnerProd4thOrder(spatial, spatial,spatial,dPhidx,d3Phidx)
     
-    h3_d2hdx = InnerProd4thOrder(phi, phi,phi,phi,d2Phidx)
-    h3_d4hdx = InnerProd4thOrder(phi, phi,phi,phi,d4Phidx)
+    h3_d2hdx = InnerProd4thOrder(spatial, spatial,spatial,spatial,d2Phidx)
+    h3_d4hdx = InnerProd4thOrder(spatial, spatial,spatial,spatial,d4Phidx)
     
     # if verbosity>1:
     #     print("h2_dhdx: ", h2_dhdx)
@@ -50,7 +50,7 @@ def MakeFluidMatrices(phi,dx,verbosity=0):
     
     return {"h2_dhdx": h2_dhdx,"h2_dhdx2": h2_dhdx2, "h2_dhdx_d3hdx": h2_dhdx_d3hdx, "h3_d2hdx": h3_d2hdx, "h3_d4hdx": h3_d4hdx}
     
-def CheckDydt(temporal, phi, matrices, times, folder="",verbosity=0, plot = False):
+def CheckDydt(temporal, spatial, matrices, times, folder="",verbosity=0, plot = False):
     h2_dhdx= matrices["h2_dhdx"]
     h2_dhdx2= matrices["h2_dhdx2"]
     h2_dhdx_d3hdx= matrices["h2_dhdx_d3hdx"]
@@ -59,7 +59,7 @@ def CheckDydt(temporal, phi, matrices, times, folder="",verbosity=0, plot = Fals
     ThirdOrders=-(3/2*h2_dhdx)
     FourthOrders=-(3*h2_dhdx2+3*h2_dhdx_d3hdx+h3_d2hdx+h3_d4hdx)
     dydt = np.empty(temporal.shape)
-    orthonormal_deviation = np.linalg.norm(InnerProd1stOrder(phi,phi)-np.identity(phi.shape[1]), ord = 'fro')
+    orthonormal_deviation = np.linalg.norm(InnerProd1stOrder(spatial,spatial)-np.identity(spatial.shape[1]), ord = 'fro')
     print("Phi deviation form orthonormality: ", orthonormal_deviation)
     for i in range(temporal.shape[0]):
         dydt[i,:] = ROMdydt(0,temporal[i,:],ThirdOrders,FourthOrders)
@@ -94,42 +94,39 @@ def CheckDydt(temporal, phi, matrices, times, folder="",verbosity=0, plot = Fals
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
                             title = "ROM $\\frac{da}{dt}$",
-                            save_path = folder + "dydt.png")
+                            save_path = folder + "dydt.png")      
         
-        
-        
-def ComputeDeriv(phi,dx,deriv = 1,verbosity =0, periodic = True):
+def ComputeDeriv(x,dx,deriv = 1,verbosity =0, periodic = True):
     """
     Computes the first-order finite difference approximation of the derivative for each column of a numpy array.
     
     Args:
-        phi: Input numpy array of size n by k.
+        x: Input numpy array of size n by k.
         dx: Input float for x distances between points
         
     Returns:
         A numpy array of size n by k, representing the derivative approximation for each column.
     """
-    CheckNumpy(phi)
+    CheckNumpy(x)
     
     if deriv ==1:
         if periodic:
-            phi_deriv = (np.roll(phi,-1,axis=0)-np.roll(phi,1,axis=0))/(2*dx)
+            phi_deriv = (np.roll(x,-1,axis=0)-np.roll(x,1,axis=0))/(2*dx)
         else: 
-            phi_deriv = np.empty(phi.shape)
-            phi_deriv[1:-1,:] = ((np.roll(phi,-1,axis=0)-np.roll(phi,1,axis=0))/(2*dx))[1:-1]
-            phi_deriv[0,:] = (-3*phi[0,:]+4*phi[1,:]-phi[2,:])/(2*dx)
-            phi_deriv[-1,:] = (3*phi[-1,:]-4*phi[-2,:]+phi[-3,:])/(2*dx)
+            phi_deriv = np.empty(x.shape)
+            phi_deriv[1:-1,:] = ((np.roll(x,-1,axis=0)-np.roll(x,1,axis=0))/(2*dx))[1:-1]
+            phi_deriv[0,:] = (-3*x[0,:]+4*x[1,:]-x[2,:])/(2*dx)
+            phi_deriv[-1,:] = (3*x[-1,:]-4*x[-2,:]+x[-3,:])/(2*dx)
     elif deriv == 2:
-        phi_deriv = (np.roll(phi,-1,axis=0)-2*phi+np.roll(phi,1,axis=0))/(dx**2)
+        phi_deriv = (np.roll(x,-1,axis=0)-2*x+np.roll(x,1,axis=0))/(dx**2)
     elif deriv == 3:
-        phi_deriv = (np.roll(phi,-2,axis=0)-2*np.roll(phi,-1,axis=0)
-                     +2*np.roll(phi,1,axis=0)-np.roll(phi,2,axis=0))/(2*dx**3)
+        phi_deriv = (np.roll(x,-2,axis=0)-2*np.roll(x,-1,axis=0)
+                     +2*np.roll(x,1,axis=0)-np.roll(x,2,axis=0))/(2*dx**3)
     elif deriv == 4:
-        phi_deriv = (np.roll(phi,-2,axis=0)-4*np.roll(phi,-1,axis=0)+6*phi
-                     -4*np.roll(phi,1,axis=0)+np.roll(phi,2,axis=0))/(dx**4)
+        phi_deriv = (np.roll(x,-2,axis=0)-4*np.roll(x,-1,axis=0)+6*x
+                     -4*np.roll(x,1,axis=0)+np.roll(x,2,axis=0))/(dx**4)
     
     return phi_deriv
-
 
 class TestComputeDeriv(unittest.TestCase):
     #Functions are written for periodic BC so instead only check interior points
@@ -200,35 +197,46 @@ class TestComputeDeriv(unittest.TestCase):
         dx=x[1]-x[0]
         dfdx_approx = ComputeDeriv(phi,dx,deriv=4)
         #print("phi, roll 1", np.roll(phi,1,axis=0))
-        #print("phi, roll -1", np.roll(phi,-1,axis=0))
+        #print("phi, roll -1", np.roll(spatial,-1,axis=0))
         np.testing.assert_array_almost_equal(dfdx[2:-2],dfdx_approx[2:-2])
-  
-      
-def ROMdydt (t,a,ThirdOrders,FourthOrders):
+     
+def ROMdydt (t, a, ThirdOrders, FourthOrders, dydt_scaling="null"):
     #Note: No verbosity checks in this function for efficiency since it is called by the ODE solver
     
-
-    # Implementation of Formula dydt_i=-aj*ak*al*[ThirdOrders_ijkl+am*(FourthOrders_ijklm)] (using einstein's notation)
-    # n_modes=a.size
-    # dydt = np.zeros(a.shape)
-    # for i in range(n_modes):
-    #     for j in range(n_modes):
-    #         for k in range(n_modes):
-    #             for l in range(n_modes):
-    #                 dydt[i]+= ThirdOrders[i,j,k,l]*a[j]*a[k]*a[l]
-    #                 for m in range(n_modes):
-    #                     dydt[i]+= FourthOrders[i,j,k,l,m]*a[j]*a[k]*a[l]*a[m]
-    
-    dydt=np.dot(FourthOrders,a)
+    dydt = np.dot(FourthOrders,a)
     dydt = np.dot(ThirdOrders+dydt,a)
-    dydt= np.dot(dydt,a)
     dydt = np.dot(dydt,a)
-    dydt= dydt*np.array([ 85.84279745, 122.51640322])
-    #dydt= dydt*np.array([[73.61683858,  81.73726709,  37.10363703,  39.46519242, 2, 2.08332944]])
+    dydt = np.dot(dydt,a)
+    
+    if type(dydt_scalings) ==np.ndarray:
+        print("using scaling")
+        dydt = dydt * dydt_scaling
+    
     return dydt
 
+def ComputeDydtScaling(spatial, temporal,matrices,times):
+    h2_dhdx= matrices["h2_dhdx"]
+    h2_dhdx2= matrices["h2_dhdx2"]
+    h2_dhdx_d3hdx= matrices["h2_dhdx_d3hdx"]
+    h3_d2hdx= matrices["h3_d2hdx"]
+    h3_d4hdx= matrices["h3_d4hdx"]
+    ThirdOrders=-(3/2*h2_dhdx)
+    FourthOrders=-(3*h2_dhdx2+3*h2_dhdx_d3hdx+h3_d2hdx+h3_d4hdx)
+    dydt = np.empty(temporal.shape)
+    orthonormal_deviation = np.linalg.norm(InnerProd1stOrder(spatial,spatial)-np.identity(spatial.shape[1]), ord = 'fro')
+    print("Phi deviation form orthonormality: ", orthonormal_deviation)
+    for i in range(temporal.shape[0]):
+        dydt[i,:] = ROMdydt(0,temporal[i,:],ThirdOrders,FourthOrders)
+        
+    dydt_anticipated = ComputeDeriv(temporal, times[1]-times[0], deriv = 1, verbosity =0, periodic = False)
+    
+    
+    #Compute scaling so peaks match
+    dydt_scaling = np.max(np.abs(dydt_anticipated),axis=0)/np.max(np.abs(dydt),axis=0)
+        
+    return dydt_scaling
 
-def SolveROM(matrices,t_input,a0, method='LSODA',verbosity =0):
+def SolveROM(matrices,t_input,a0, dydt_scaling = "null", method='LSODA',verbosity =0):
     h2_dhdx= matrices["h2_dhdx"]
     h2_dhdx2= matrices["h2_dhdx2"]
     h2_dhdx_d3hdx= matrices["h2_dhdx_d3hdx"]
@@ -243,6 +251,9 @@ def SolveROM(matrices,t_input,a0, method='LSODA',verbosity =0):
         print("t_input.shape: ", t_input.shape)
         print("t_input.size: ", t_input.size)
         
+    
+    print("dydt_scaling: ", dydt_scaling)
+    dydt = lambda t,x: ROMdydt(t,x, ThirdOrders, FourthOrders, dydt_scaling = dydt_scaling)
     #Check t_span is 1D array
     if t_input.size<2 or t_input.ndim!=1:
         raise Exception("Need a 1D array of at least size 2 for t_input")
@@ -250,10 +261,11 @@ def SolveROM(matrices,t_input,a0, method='LSODA',verbosity =0):
         t_span=t_input
         if verbosity >0:
             print("t_span.shape: ",t_span.shape)
-        scipy_outputs = scipy.integrate.solve_ivp(ROMdydt,
+            
+        
+        scipy_outputs = scipy.integrate.solve_ivp(dydt,
                                                 t_span,
                                                 a0,
-                                                args = (ThirdOrders, FourthOrders),
                                                 method = method)
     else:
         t_eval=t_input
@@ -261,10 +273,9 @@ def SolveROM(matrices,t_input,a0, method='LSODA',verbosity =0):
         if verbosity >0:
             print("t_eval.shape: ",t_eval.shape)
             print("t_span: ",t_span)
-        scipy_outputs = scipy.integrate.solve_ivp(ROMdydt,
+        scipy_outputs = scipy.integrate.solve_ivp(dydt,
                                                 t_span,
                                                 a0,
-                                                args = (ThirdOrders, FourthOrders),
                                                 method = method,
                                                 t_eval=t_eval)
     return(scipy_outputs.t, scipy_outputs.y, scipy_outputs)
@@ -295,14 +306,14 @@ def InnerProd4thOrder(Ar, Al1,Al2,Al3,Al4,  type = "L1", W=1.0, verbosity =0):
         print("Al3.shape: ", Al3.shape)
         print("Al4.shape: ", Al4.shape)
     if verbosity > 1:
-        #Print head of phi
+        #Print head of spatial
         print("Ar[:,:5]: ", Ar[:,:5])
         print("Al1[:,:5]: ", Al1[:,:5])
         print("Al2[:,:5]: ", Al2[:,:5])
         print("Al3[:,:5]: ", Al3[:,:5])
         print("Al4[:,:5]: ", Al4[:,:5])
         
-    # Check that phi is a numpy array of size n by k.
+    # Check that spatial is a numpy array of size n by k.
     CheckNumpy(Ar)
     CheckNumpy(Al1,dim=Ar.shape)
     CheckNumpy(Al2,dim=Ar.shape)
