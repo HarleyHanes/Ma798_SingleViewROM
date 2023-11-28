@@ -29,6 +29,9 @@ def load(location, time_steps=np.arange(0,202), plot = False,verbosity=0):
 
     k = 2 # number of modes
 
+    aves = data.mean(axis=0)
+    data = data - aves
+
     spatial, temporal = POD(data,k, verbosity=verbosity)
 
     if plot:
@@ -46,4 +49,4 @@ def load(location, time_steps=np.arange(0,202), plot = False,verbosity=0):
         print("times.shape: ", times.shape)
         print("xs.shape: ", xs.shape)
 
-    return(spatial, temporal,times,xs)
+    return(data,spatial, temporal, aves, times,xs)
