@@ -208,8 +208,7 @@ def ROMdydt (t, a, ThirdOrders, FourthOrders, dydt_scaling="null"):
     dydt = np.dot(dydt,a)
     dydt = np.dot(dydt,a)
     
-    if type(dydt_scalings) ==np.ndarray:
-        print("using scaling")
+    if type(dydt_scaling) ==np.ndarray:
         dydt = dydt * dydt_scaling
     
     return dydt

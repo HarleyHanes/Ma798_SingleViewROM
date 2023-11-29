@@ -33,7 +33,7 @@ def randSVD(A,k,p,q):
     M,S,Vt = np.linalg.svd(A @ Q, full_matrices = False)
     V = Q @ (Vt[:k,:]).T
 
-    spatial = M[:,:modes]
+    spatial = M[:,:k]
     temporal = np.dot(spatial.T,A)
 
     return spatial, temporal.T

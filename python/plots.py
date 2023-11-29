@@ -87,10 +87,30 @@ def plot_error(temporal_true, temporal_rom, times, logy= False,
     if xlabel != "null":
         plt.xlabel(xlabel)
     if ylabel != "null":
-        plt.ylabel(ylabel)
+        plt.ylabel(ylabel,rotation="horizontal",labelpad=0)
     if title != "null":
         plt.title(title)
     
+    plt.tight_layout()
+    if save_path == "null":
+        plt.show()
+    else :
+        plt.savefig(save_path)
+        plt.show()
+
+
+def plot_method_error(errors,iterations,legend="null", xlabel = "null", ylabel = "null", save_path = "null"):
+
+    plt.plot(iterations, errors)
+    plt.title("ROM error with Iterative Bases")
+    if legend!= "null":
+        plt.legend(legend)
+    if xlabel != "null":
+        plt.xlabel(xlabel)
+    if ylabel != "null":
+        plt.ylabel(ylabel,rotation="horizontal",labelpad=0)
+    
+    plt.tight_layout()
     if save_path == "null":
         plt.show()
     else :

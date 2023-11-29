@@ -19,15 +19,18 @@ from fluid_rom import *
 
 def IterativeOptimization(snapshots, snapshots_full, averages, modes, times, dx, batchsize=5, iterations=5, method="SVD",p=5,q=2):
 
-    if method == "SVD": spatial  = POD(snapshots,modes)[0]
-    if method == "RandSVD": spatial  = randPOD(snapshots,modes)[0]
-    if method == "SingleView": spatial,storage = singleview(snapshots,modes)[0,2]
-    
+    if method == "SVD": 
+        spatial  = POD(snapshots,modes)[0]
+    if method == "RandSVD": 
+        spatial  = randSVD(snapshots,modes,p,q)[0]
+    if method == "SingleView":
+        spatial, trash, storage = singleview(snapshots,modes)
+    error=np.empty((iterations,snapshots_full.shape[1]))
     for i in range(iterations):
             
         #Compute temporal modes (need to do this since spatial snapshots aren't neccesarily in sequence)
         
-        temporal = np.dot(spatial.T, snapshots_full)
+        temporal = np.dot(spatial.T, snapshots_full).transpose()
         
         #Form ROM
         
@@ -35,31 +38,35 @@ def IterativeOptimization(snapshots, snapshots_full, averages, modes, times, dx,
         
         #Compute ROM error
         
-        error = ComputeROMerror(rom_matrices,temporal, snapshots_full, times)
+        error[i,:] = ComputeROMerror(rom_matrices,spatial, temporal, snapshots_full, times)
 
-        new_snapshots = UpdateSnapshots(snapshots_full, error, batchsize)
-
+        new_snapshots = UpdateSnapshots(snapshots_full, error[i,:], batchsize)
+        print("snapsots.shape: ", snapshots.shape)
+        print("new_snapsots.shape: ", new_snapshots.shape)
         if method == "SVD":
-            snapshots = np.concatenate([snapshots,new_snapshots])
+            snapshots = np.concatenate([snapshots,new_snapshots],axis =1 )
             spatial  = POD(snapshots,modes)[0]
         if method == "RandSVD":
-            snapshots = np.concatenate([snapshots,new_snapshots])
-            spatial  = randPOD(snapshots,modes)[0]
+            snapshots = np.concatenate([snapshots,new_snapshots],axis =1 )
+            spatial  = randSVD(snapshots,modes,p,q)[0]
         if method == "SingleView":
-            spatial,storage = update_singleview(new_snapshots,storage)[0,2]
+            spatial,trash, storage = update_singleview(new_snapshots,storage)
+            
+    return error, snapshots
         
-def ComputeROMerror(rom_matrices,temporal,snapshots_full,times):
+def ComputeROMerror(matrices,spatial, a_rom,snapshots_full,times):
+    print("a_rom.shape: ", a_rom.shape)
     # Compute multiplier
-    
-    # Add multiplier to matrices
+    scaling = ComputeDydtScaling(spatial, a_rom, matrices,times)
     
     #Compute ROM solution across t
     
-    #Compute error (as n_snapshots vector)
+    (t,a_computed,solver_output)=SolveROM(matrices,times, a_rom[0,:], verbosity=1,dydt_scaling=scaling)
+   
 
-    # error_matrix = _____________ (snapshots_full - spatial*a_rom)
+    error_matrix = (snapshots_full - np.matmul(spatial,a_computed))
     
-    error = np.sum(error_matrix**2,axis=1)    
+    error = np.sum(error_matrix**2,axis=0)    
     return error
 
 def UpdateSnapshots(snapshots_full, error,batchsize):
