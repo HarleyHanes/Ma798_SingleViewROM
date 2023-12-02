@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 def POD(A, modes,verbosity=0):
 
@@ -33,7 +32,7 @@ def randSVD(A,k,p,q):
     M,S,Vt = np.linalg.svd(A @ Q, full_matrices = False)
     V = Q @ (Vt[:k,:]).T
 
-    spatial = M[:,:modes]
+    spatial = M[:,:k]
     temporal = np.dot(spatial.T,A)
 
     return spatial, temporal.T
@@ -58,7 +57,6 @@ def singleview(A, modes,verbosity=0):
     
     Q = np.linalg.qr(Y, mode = 'reduced')[0]
 
-    Q = Q[:,:modes]
     X = np.dot(Psi,Q)
 
     B = np.linalg.lstsq(X,W,rcond=None)[0]
@@ -66,8 +64,8 @@ def singleview(A, modes,verbosity=0):
 
     spatial,temporal = POD(B,modes)
 
-    storage = {"Omega": Omega, "Psi": Psi, "Y": Y, "W": W,"Q": Q,"X":X,"modes":modes}
-
+    storage = {"Psi": Psi, "Y": Y, "W": W,"modes":modes}
+    
     return spatial,temporal,storage
 
 def update_singleview(A,storage,verbosity=0):
@@ -77,25 +75,24 @@ def update_singleview(A,storage,verbosity=0):
         print("Stored variables: ",list(storage))
     if verbosity > 1:
          print("A[:,:5]: ", A[:,:5])
+         
+    m,n = A.shape
 
-    n = storage["Q"].shape[1]
-    nend = n+storage["modes"]
+    Omega = np.random.randn(n, 2*storage["modes"]+1)
 
-    A2 = A[:,np.nonzero(np.any(A != 0, axis=0))[0]]
+    Y = storage["Y"] + np.dot(A,Omega)
+    W = np.concatenate([storage["W"],np.dot(storage["Psi"],A)],axis=1)
+
+    Q = np.linalg.qr(Y, mode = 'reduced')[0]
     
-    Y = storage["Y"] + np.dot(A,storage["Omega"])
-    W = storage["W"] + np.dot(storage["Psi"],A)
-
-    Q = np.linalg.qr(np.concatenate([storage["Q"],A2],axis=1))[0]
-    Q = Q[:,:nend]
-    
-    X = np.concatenate([storage["X"],np.dot(storage["Psi"],Q[:,n:])],axis=1)
+    X = np.dot(storage["Psi"],Q)
+                       
     B = np.linalg.lstsq(X,W,rcond=None)[0]
     B = np.dot(Q,B)
 
     spatial,temporal = POD(B,storage["modes"])
 
-    storage.update({"Y": Y, "W": W,"Q": Q,"X":X})
+    storage.update({"Y": Y, "W": W})
 
     return spatial,temporal,storage
     
