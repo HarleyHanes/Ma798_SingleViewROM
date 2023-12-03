@@ -6,10 +6,10 @@ from rom_updating import *
 
 #Set n snapshots and n modes
 
-method = "SVD"
+method = "SingleView"
 #Load data
 
-location = ""
+location = "Ma798_SingleViewROM/Fiber_Data/"
 ts = 60
 te = 201
 
@@ -28,7 +28,7 @@ t0s = np.linspace(0,te-ts-1,b0).astype(int)
 data = data_full[:,t0s]
 
 if method == "SingleView":
-    padding = np.zeros(data.shape[0],Niters*batchsize)
+    padding = np.zeros((data.shape[0],Niters*batchsize))
     data = np.concatenate([data,padding],axis=1)
     
 IterativeOptimization(data, data_full, t0s,2, times[t0s], times, xs[2]-xs[1], batchsize, Niters, method,p,q)

@@ -28,6 +28,8 @@ iterations =6
 x = np.loadtxt(location+'xs.dat')
 print("x.shape: ", x.shape)
 times = np.loadtxt(location+'times.dat')[t_start:]
+times_initial = times[:n_initial_snapshots]
+indices = np.arange(n_initial_snapshots)
 print("times.shape: ", times.shape)
 snapshots_full = np.loadtxt(location+'data.dat')[:,t_start:]
 print("snapshots_full.shape: ", snapshots_full.shape)
@@ -40,10 +42,10 @@ snapshots_full=snapshots_full-averages
 snapshots = snapshots_full[:,0:n_initial_snapshots]
 
 
-(error_SVD, snapshots_SVD) = IterativeOptimization(snapshots, snapshots_full, averages, n_modes, times, x[1]-x[0], iterations = iterations, method="SVD")
-(error_RandSVD, snapshots_RandSVD) = IterativeOptimization(snapshots, snapshots_full, averages, n_modes, times, x[1]-x[0], iterations = iterations, method="RandSVD")
-#(error_SingleView, snapshots_SingleView) = IterativeOptimization(snapshots, snapshots_full, averages, n_modes, times, x[1]-x[0], iterations = iterations, method="SingleView")
-error_plot = np.sum(np.abs(error_RandSVD),axis=1)/np.sum(np.abs(error_SVD),axis = 1)
+(error_SVD, snapshots_SVD) = IterativeOptimization(snapshots, snapshots_full, indices, n_modes, times_initial, times, x[1]-x[0], iterations = iterations, method="SVD")
+(error_RandSVD, snapshots_RandSVD) = IterativeOptimization(snapshots, snapshots_full, indices, n_modes, times_initial,times, x[1]-x[0], iterations = iterations, method="RandSVD")
+(error_SingleView, snapshots_SingleView) = IterativeOptimization(snapshots, snapshots_full, indices, n_modes, times_initial, times, x[1]-x[0], iterations = iterations, method="SingleView")
+error_plot = np.array([np.sum(np.abs(error_RandSVD),axis=1), np.sum(np.abs(error_SingleView),axis=1)])/np.sum(np.abs(error_SVD),axis = 1)
 #error_plot = np.array([np.sum(error_SVD,axis = 1), np.sum(error_RandSVD,axis = 1)]).transpose()
 plots.plot_method_error(error_plot, np.arange(iterations), xlabel = "Greedy Sampling Iterations", ylabel = "$\\frac{Error_{RandSVD}}{Error_{SVD}}$", 
                         save_path = "Ma798_SingleViewROM/figures/GreedySampling/convergence")

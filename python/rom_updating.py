@@ -22,7 +22,7 @@ def IterativeOptimization(snapshots, snapshots_full, indices,modes, times, times
 
     if method == "SVD": spatial  = POD(snapshots,modes)[0]
     if method == "RandSVD": spatial  = randSVD(snapshots,modes,p,q)[0]
-    if method == "SingleView": spatial,storage = singleview(snapshots,modes)[0,2]
+    if method == "SingleView": spatial,trash, storage = singleview(snapshots,modes)
     error=np.empty((iterations,snapshots_full.shape[1]))
     for i in range(iterations):
         if verbosity > 0:
@@ -56,7 +56,7 @@ def IterativeOptimization(snapshots, snapshots_full, indices,modes, times, times
             snapshots = np.concatenate([snapshots,new_snapshots],axis=1)
             spatial  = randSVD(snapshots,modes,p,q)[0]
         if method == "SingleView":
-            spatial,storage = update_singleview(new_snapshots,storage)[0,2]
+            spatial,trash,storage = update_singleview(new_snapshots,storage)
     print("Selected Indices", sorted(indices))
     return (error, indices)
 
@@ -90,5 +90,5 @@ class CheckUpdate(unittest.TestCase):
         v = np.array([1.2, 2.3, 3.2, 1.9, 4.0])
         A = np.identity(5)
         A1 = A[:,3,5]
-        result = updateSnapshots(A,v,2)
+        result = UpdateSnapshots(A,v,2)
         self.assertEqual(result, A1)

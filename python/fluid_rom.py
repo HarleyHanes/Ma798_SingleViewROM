@@ -60,7 +60,8 @@ def CheckDydt(temporal, spatial, matrices, times, folder="",verbosity=0, plot = 
     FourthOrders=-(3*h2_dhdx2+3*h2_dhdx_d3hdx+h3_d2hdx+h3_d4hdx)
     dydt = np.empty(temporal.shape)
     orthonormal_deviation = np.linalg.norm(InnerProd1stOrder(spatial,spatial)-np.identity(spatial.shape[1]), ord = 'fro')
-    print("Phi deviation form orthonormality: ", orthonormal_deviation)
+    if verbosity > 0:
+        print("Phi deviation form orthonormality: ", orthonormal_deviation)
     for i in range(temporal.shape[0]):
         dydt[i,:] = ROMdydt(0,temporal[i,:],ThirdOrders,FourthOrders)
         
@@ -213,7 +214,7 @@ def ROMdydt (t, a, ThirdOrders, FourthOrders, dydt_scaling="null"):
     
     return dydt
 
-def ComputeDydtScaling(spatial, temporal,matrices,times):
+def ComputeDydtScaling(spatial, temporal,matrices,times,verbosity =0):
     h2_dhdx= matrices["h2_dhdx"]
     h2_dhdx2= matrices["h2_dhdx2"]
     h2_dhdx_d3hdx= matrices["h2_dhdx_d3hdx"]
@@ -223,7 +224,8 @@ def ComputeDydtScaling(spatial, temporal,matrices,times):
     FourthOrders=-(3*h2_dhdx2+3*h2_dhdx_d3hdx+h3_d2hdx+h3_d4hdx)
     dydt = np.empty(temporal.shape)
     orthonormal_deviation = np.linalg.norm(InnerProd1stOrder(spatial,spatial)-np.identity(spatial.shape[1]), ord = 'fro')
-    print("Phi deviation form orthonormality: ", orthonormal_deviation)
+    if verbosity > 0:
+        print("Phi deviation form orthonormality: ", orthonormal_deviation)
     for i in range(temporal.shape[0]):
         dydt[i,:] = ROMdydt(0,temporal[i,:],ThirdOrders,FourthOrders)
         
