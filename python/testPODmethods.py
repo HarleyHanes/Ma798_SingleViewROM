@@ -2,13 +2,15 @@ import numpy as np
 import fluid_rom
 import plots
 import data
+import matplotlib.pyplot as plt
 from POD import *
 
 #Set n snapshots and n modes
 
 #Load data
-
-location = ""
+np.random.seed(0)
+mode_multiplier=2
+location = "Ma798_SingleViewROM/Fiber_Data/"
 ts = 80
 te = 200
 
@@ -32,7 +34,7 @@ A3 = data_full[:,80:]
 
 S1, T1  = POD(A1,modes)
 randS1, randT1  = randSVD(A1,modes,p,q)
-svS1, svT1, storage = singleview(A1,modes)
+svS1, svT1, storage = singleview(A1,modes,mode_multiplier=mode_multiplier)
 
 # Add 40 more columns
 
@@ -67,32 +69,53 @@ DR = np.dot(randS3,randT3.T)+aves
 DS = np.dot(svS3,svT3.T)+aves
 
 # Plot Reconstructions
-
+width = 8
+plt.figure(figsize=(width,width*.5))
 plt.subplot(1,3,1)
 
-plt.plot(xs,A[:,40],'k',label='True Solution')
-plt.plot(xs,B[:,-1],'r',label='POD Recon')
-plt.plot(xs,BR[:,-1],'g--',label='RandPOD Recon')
-plt.plot(xs,BS[:,-1],'b',label='SingleView Recon')
-plt.title("First 40 Columns")
+plt.plot(xs,A[:,0],'k',label='True Solution')
+plt.plot(xs,B[:,0],'r',label='POD Recon')
+plt.plot(xs,BR[:,0],'g--',label='RandPOD Recon')
+plt.plot(xs,BS[:,0],'b:',label='SingleView Recon')
+plt.title("40 Snapshots")
+plt.ylabel("h(t,x)")
+plt.xlabel("x")
 
 plt.subplot(1,3,2)
 
-plt.plot(xs,A[:,80],'k',label='True Solution')
-plt.plot(xs,C[:,-1],'r',label='POD Recon')
-plt.plot(xs,CR[:,-1],'g--',label='RandPOD Recon')
-plt.plot(xs,CS[:,-1],'b',label='SingleView Recon')
-plt.title("First 80 Columns")
+plt.plot(xs,A[:,0],'k',label='True Solution')
+plt.plot(xs,C[:,0],'r',label='POD Recon')
+plt.plot(xs,CR[:,0],'g--',label='RandPOD Recon')
+plt.plot(xs,CS[:,0],'b:',label='SingleView Recon')
+plt.title("80 Snapshots")
 
 plt.subplot(1,3,3)
 
-plt.plot(xs,A[:,-1],'k',label='True Solution')
-plt.plot(xs,D[:,-1],'r',label='POD Recon')
-plt.plot(xs,DR[:,-1],'g--',label='RandPOD Recon')
-plt.plot(xs,DS[:,-1],'b',label='SingleView Recon')
-plt.title("All 120 Columns")
+plt.plot(xs,A[:,0],'k',label='True Solution')
+plt.plot(xs,D[:,0],'r',label='POD Recon')
+plt.plot(xs,DR[:,0],'g--',label='RandPOD Recon')
+plt.plot(xs,DS[:,0],'b:',label='SingleView Recon')
+plt.title("120 Snapshots")
+plt.suptitle("Reconstruction of $t="+ str(ts) + "$ with $(k,\ell_1, \ell_2)=("
+             + str(storage["modes"])+ ", " +str(storage["l1"])+ ", " + str(storage["l2"]) +")$")
 
-plt.legend()
+# plt.plot(xs,A[:,80],'k',label='True Solution')
+# plt.plot(xs,C[:,-1],'r',label='POD Recon')
+# plt.plot(xs,CR[:,-1],'g--',label='RandPOD Recon')
+# plt.plot(xs,CS[:,-1],'b',label='SingleView Recon')
+# plt.title("First 80 Columns")
 
+# plt.subplot(1,3,3)
+
+# plt.plot(xs,A[:,-1],'k',label='True Solution')
+# plt.plot(xs,D[:,-1],'r',label='POD Recon')
+# plt.plot(xs,DR[:,-1],'g--',label='RandPOD Recon')
+# plt.plot(xs,DS[:,-1],'b',label='SingleView Recon')
+# plt.title("All 120 Columns")
+
+
+plt.legend(loc = 'lower right')
+plt.tight_layout()
+plt.savefig("Ma798_SingleViewROM/Figures/POD/reconstructions_mult" + str(mode_multiplier) + ".pdf")
 plt.show()
 

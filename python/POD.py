@@ -38,7 +38,7 @@ def randSVD(A,k,p,q):
     return spatial, temporal.T
     
 
-def singleview(A, modes,verbosity=0):
+def singleview(A, modes,verbosity=0, mode_multiplier = 6):
 
     if verbosity > 0:
         print("A.shape: ", A.shape)
@@ -47,10 +47,12 @@ def singleview(A, modes,verbosity=0):
          print("A[:,:5]: ", A[:,:5])
          print("modes: ", modes)  
 
+    l1=mode_multiplier*modes+1
+    l2=mode_multiplier*l1+1
     m,n = A.shape
     
-    Omega = np.random.randn(n, 2*modes+1)
-    Psi   = np.random.randn(2*(2*modes+1)+1, m)
+    Omega = np.random.randn(n, l1)
+    Psi   = np.random.randn(l2, m)
 
     Y = np.dot(A,Omega)
     W = np.dot(Psi,A)
@@ -64,7 +66,7 @@ def singleview(A, modes,verbosity=0):
 
     spatial,temporal = POD(B,modes)
 
-    storage = {"Psi": Psi, "Y": Y, "W": W,"modes":modes}
+    storage = {"Psi": Psi, "Y": Y, "W": W,"modes":modes, "l1": l1, "l2": l2}
     
     return spatial,temporal,storage
 
@@ -77,8 +79,8 @@ def update_singleview(A,storage,verbosity=0):
          print("A[:,:5]: ", A[:,:5])
          
     m,n = A.shape
-
-    Omega = np.random.randn(n, 2*storage["modes"]+1)
+    
+    Omega = np.random.randn(n, storage["l1"])
 
     Y = storage["Y"] + np.dot(A,Omega)
     W = np.concatenate([storage["W"],np.dot(storage["Psi"],A)],axis=1)
@@ -97,3 +99,26 @@ def update_singleview(A,storage,verbosity=0):
     return spatial,temporal,storage
     
 
+def SingleViewWrapper(matrix,k,n_updates,mode_multiplier,verbosity = 0):
+    #split columns of matrix into n_updates
+    matrix_split = np.split(matrix,n_updates,axis=1)
+    if verbosity >0:
+        print("len(matrix_split)", len(matrix_split))
+    #make initialization matrix
+    first_matrix=np.zeros(matrix.shape)
+    if verbosity >0:
+        print("matrix.shape[1]/n_updates: ", matrix.shape[1]/n_updates)
+    first_matrix[:,:int(matrix.shape[1]/n_updates)]=matrix_split[0]
+    #run first singleView
+    spatial,temporal,storage = singleview(matrix_split[0], k, mode_multiplier= mode_multiplier, verbosity=0)
+    if verbosity>0:
+        print("spatial.shape: ", spatial.shape)
+        print("temporal.shape: ", temporal.shape)
+    #run updates
+    for i in range(n_updates-1):
+        spatial,temporal, storage = update_singleview(matrix_split[i+1],storage)
+        if verbosity>0:
+            print("matrix_split[i+1].shape: ", matrix_split[i+1].shape)
+            print("spatial.shape: ", spatial.shape)
+            print("temporal.shape: ", temporal.shape)
+    return spatial,temporal
