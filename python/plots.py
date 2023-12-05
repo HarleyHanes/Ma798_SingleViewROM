@@ -50,25 +50,29 @@ def plot_temporal(temporal,times,k, xlabel = "null", ylabel = "null", title = "n
             if xlabel != "null" and (i>=(ks-1)*ks2): 
                 axs[ax_iterate[0], ax_iterate[1]].set_xlabel(xlabel)
             if ylabel != "null" and (i % ks2 ==0):
-                axs[ax_iterate[0], ax_iterate[1]].set_ylabel(ylabel)
+                axs[ax_iterate[0], ax_iterate[1]].set_ylabel(ylabel, rotation="horizontal")
+            axs[ax_iterate[0], ax_iterate[1]].set_title("Mode " + str(i+1))
         #Title feature not working now. Need to figure out how to put title over whole fig rather than just in subplot
     elif k>1 : 
         for i in range(k):
+            
             axs[i].plot(times,temporal[:,i])
             if xlabel != "null" and (i==0): 
                 axs[i].set_xlabel(xlabel)
             if ylabel != "null":
-                axs[i].set_ylabel(ylabel)
+                axs[i].set_ylabel(ylabel, rotation="horizontal")
+            axs[i].title("Mode " + str(i+1))
         #Title feature not working now. Need to figure out how to put title over whole fig rather than just in subplot
     else :
         axs.plot(times,temporal)
         if xlabel != "null": 
             axs.set_xlabel(xlabel)
         if ylabel != "null":
-            axs.set_ylabel(ylabel)
+            axs.set_ylabel(ylabel, rotation="horizontal")
         #Title feature not working now. Need to figure out how to put title over whole fig rather than just in subplot
     if title != "null":
         plt.suptitle(title)
+    plt.tight_layout()
     if save_path == "null":
         plt.show()
     else :
@@ -99,8 +103,8 @@ def plot_error(temporal_true, temporal_rom, times, logy= False,
         plt.show()
 
 
-def plot_method_error(errors,iterations,legend="null", xlabel = "null", ylabel = "null", save_path = "null"):
-
+def plot_method_error(errors,iterations,legend="null", xlabel = "null", ylabel = "null", save_path = "null",figsize = (6,4)):
+    plt.figure(figsize=figsize)
     plt.plot(iterations, errors)
     plt.title("ROM error with Iterative Bases")
     if legend!= "null":
@@ -108,8 +112,9 @@ def plot_method_error(errors,iterations,legend="null", xlabel = "null", ylabel =
     if xlabel != "null":
         plt.xlabel(xlabel)
     if ylabel != "null":
-        plt.ylabel(ylabel,rotation="horizontal",labelpad=0)
-    
+        plt.ylabel(ylabel,labelpad=0)
+        
+        
     plt.tight_layout()
     if save_path == "null":
         plt.show()

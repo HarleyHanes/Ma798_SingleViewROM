@@ -36,11 +36,16 @@ def IterativeOptimization(snapshots, snapshots_full, indices,modes, times, times
 
         a0 = temporal[0]
 
-        a_rom = ComputeROM(spatial,temporal,dx,times_full,a0)
+        a_rom = ComputeROM(spatial[:,1:],temporal[:,1:],dx,times_full,a0[1:])
 
+        first_temporal = np.reshape(temporal[:,0], (temporal.shape[0],1))
+        #Append first mode to a_rom
+        print("first_temporal.shape: ", first_temporal.shape)
+        print("a_rom.shape: ", a_rom.shape)
+        a_rom_combined = np.append(first_temporal.transpose(),a_rom, axis=0)
         # Compute ROM error and update time snapshots
         
-        error[i,:] = ComputeROMerror(spatial,a_rom,snapshots_full,verbosity = verbosity)
+        error[i,:] = ComputeROMerror(spatial,a_rom_combined,snapshots_full,verbosity = verbosity)
 
         new_snapshots,new_times,new_indices = UpdateSnapshots(snapshots_full,times_full,error[i,:], batchsize,verbosity = verbosity)
         if verbosity > 1:
@@ -57,13 +62,14 @@ def IterativeOptimization(snapshots, snapshots_full, indices,modes, times, times
             spatial  = randSVD(snapshots,modes,p,q)[0]
         if method == "SingleView":
             spatial,trash,storage = update_singleview(new_snapshots,storage)
+        spatial = spatial[:,1:]
     print("Selected Indices", sorted(indices))
     return (error, indices)
 
 def ComputeROM(spatial,temporal,dx,times,a0):
     rom_matrices = MakeFluidMatrices(spatial,dx,verbosity=0)
-    scaling = ComputeDydtScaling(spatial, temporal, rom_matrices,times)
-    t,a_rom,solver_output= SolveROM(rom_matrices,times,a0, dydt_scaling = scaling, verbosity=0) 
+    #scaling = ComputeDydtScaling(spatial, temporal, rom_matrices,times)
+    t,a_rom,solver_output= SolveROM(rom_matrices,times,a0, verbosity=0) 
     return a_rom
 
         

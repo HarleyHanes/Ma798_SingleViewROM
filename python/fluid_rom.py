@@ -68,7 +68,7 @@ def CheckDydt(temporal, spatial, matrices, times, folder="",verbosity=0, plot = 
     # Can get approximate derivatives from finite difference on temporal modes
     # Note: skip outer t_steps for analysis since we're using periodic deriv calc
     dydt_anticipated = ComputeDeriv(temporal, times[1]-times[0], deriv = 1, verbosity =0, periodic = False)
-    dydt_diff = (dydt_anticipated-dydt)/dydt
+    dydt_diff = (dydt_anticipated-dydt)/dydt_anticipated
 
     if verbosity > 0:
         print("dydt.shape: ", dydt.shape)
@@ -85,19 +85,44 @@ def CheckDydt(temporal, spatial, matrices, times, folder="",verbosity=0, plot = 
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
                             title = "ROM and Anticipated $\\frac{da}{dt}$ Difference",
-                            save_path = folder + "dydt_diff.png")
+                            save_path = folder + "dydt_diff.pdf")
         plots.plot_temporal(dydt_anticipated, times,dydt_anticipated.shape[1],
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
                             title = "Anticipated $\\frac{da}{dt}$",
-                            save_path = folder + "dydt_anticipated.png")
+                            save_path = folder + "dydt_anticipated.pdf")
         plots.plot_temporal(dydt, times,dydt.shape[1],
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
                             title = "ROM $\\frac{da}{dt}$",
-                            save_path = folder + "dydt.png")      
+                            save_path = folder + "dydt.pdf")      
         
-def ComputeDeriv(x,dx,deriv = 1,verbosity =0, periodic = True):
+def filter(x,dx,N):
+    
+    x2 = np.zeros(x.shape)
+    for i in range(N):
+        x2[0] = (x[1]+2*x[0])/3
+        x2[1:-1] = (x[:-2] + 2*x[1:-1] + x[2:])/4
+        x2[-1] = (x[-2]+2*x[-1])/3
+        x=x2
+    return x
+        
+def ComputeDeriv(x,dx,deriv = 1,verbosity =0, periodic = True, smooth = True):
+
+    CheckNumpy(x)
+    if smooth:
+        n = len(x)
+        x = np.concatenate([x,x,x])
+        
+        for i in range(deriv):
+            x = DerivFormulas(x,dx,1,verbosity,periodic)
+            if (i%2==1): x = filter(x,dx,200)
+        x = x[n:2*n]
+    else: 
+        x = DerivFormulas(x,dx,deriv,verbosity,periodic)
+    return x
+        
+def DerivFormulas(x,dx,deriv = 1,verbosity =0, periodic = True):
     """
     Computes the first-order finite difference approximation of the derivative for each column of a numpy array.
     
