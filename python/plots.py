@@ -79,13 +79,28 @@ def plot_temporal(temporal,times,k, xlabel = "null", ylabel = "null", title = "n
         plt.savefig(save_path)
         plt.show()
         
-def plot_error(temporal_true, temporal_rom, times, logy= False,
-               xlabel = "null", ylabel = "null", title = "null",  save_path = "null"):
+def plot_error(temporal_true, temporal_rom, times, scaling="pointwise", final_snapshot_iter = "null", logy= False,
+               xlabel = "null", ylabel = "null", title = "null",  save_path = "null", legend="null",figsize = (4,3.3)):
         
     #time_error = np.sum(np.sqrt(((temporal_true-temporal_rom)/temporal_true)**2), axis =1)
-
-    time_error = np.sqrt(np.sum((temporal_true-temporal_rom)**2, axis =1))/np.sqrt(np.sum(temporal_true**2, axis =1))
-    plt.plot(times,time_error)
+    plt.figure(figsize=figsize)
+    if scaling == "pointwise":
+        time_error = np.sqrt(np.sum((temporal_true-temporal_rom)**2, axis =1))/np.sqrt(np.sum(temporal_true**2, axis =1))
+    elif scaling == "maximum":
+        time_error = np.sqrt(np.sum((temporal_true-temporal_rom)**2, axis =1))/np.max(np.sqrt(np.sum(temporal_true**2, axis =1)))
+    elif scaling == "none":
+        time_error = temporal_rom-temporal_true
+        
+    linestyles = ['-','--',':','-.']
+    for i in range(time_error.shape[1]):
+        plt.plot(times,time_error[:,i],linestyle = linestyles[i])
+        
+        
+    if final_snapshot_iter != "null":
+        plt.plot(times[final_snapshot_iter],time_error[final_snapshot_iter],"g*")
+        plt.legend(("Error", "Time of Final Snapshot"))
+    elif legend != "null":
+        plt.legend(legend)
     if logy:
         plt.yscale("log")
     if xlabel != "null":
@@ -105,7 +120,9 @@ def plot_error(temporal_true, temporal_rom, times, logy= False,
 
 def plot_method_error(errors,iterations,legend="null", xlabel = "null", ylabel = "null", save_path = "null",figsize = (6,4)):
     plt.figure(figsize=figsize)
-    plt.plot(iterations, errors)
+    linestyles = ['-','--',':','-.']
+    for i in range(errors.shape[1]):
+        plt.plot(iterations, errors[:,i],linestyle = linestyles[i])
     plt.title("ROM error with Iterative Bases")
     if legend!= "null":
         plt.legend(legend)

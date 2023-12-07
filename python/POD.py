@@ -12,7 +12,8 @@ def POD(A, modes,verbosity=0):
     """ Computes the spatial modes and temporal coefficients using the POD """
 
     M,S,Vt =np.linalg.svd(A, full_matrices = False)
-
+    #if energy != "null":
+    print("Energy Quantified by k =", modes, ": ", np.sum(S[:modes]/np.sum(S)))
     spatial = M[:,:modes]
     temporal = np.dot(spatial.T,A)
 

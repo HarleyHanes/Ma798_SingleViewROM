@@ -40,29 +40,27 @@ def IterativeOptimization(snapshots, snapshots_full, indices,modes, times, times
 
         first_temporal = np.reshape(temporal[:,0], (temporal.shape[0],1))
         #Append first mode to a_rom
-        print("first_temporal.shape: ", first_temporal.shape)
-        print("a_rom.shape: ", a_rom.shape)
-        a_rom_combined = np.append(first_temporal.transpose(),a_rom, axis=0)
+        a_rom_combined = np.append(first_temporal,a_rom, axis=1)
         # Compute ROM error and update time snapshots
         
-        error[i,:] = ComputeROMerror(spatial,a_rom_combined,snapshots_full,verbosity = verbosity)
-
-        new_snapshots,new_times,new_indices = UpdateSnapshots(snapshots_full,times_full,error[i,:], batchsize,verbosity = verbosity)
+        error[i,:] = ComputeROMerror(spatial,a_rom_combined,snapshots_full,temporal,verbosity = verbosity)
+        indices_unused = np.delete(np.arange(len(error[i,:]), dtype=int),indices)
+        new_snapshots,new_times,new_indices = UpdateSnapshots(snapshots_full,times_full,np.delete(error[i,:],indices),
+                                                              indices_unused,batchsize,verbosity = verbosity)
+        
         if verbosity > 1:
             print("indices.shape: ", indices.shape)
             print("new_indices.shape: ", new_indices.shape)
         times = np.concatenate([times, new_times])
         indices = np.concatenate([indices, new_indices])
 
+        snapshots = np.concatenate([snapshots,new_snapshots],axis=1)
         if method == "SVD":
-            snapshots = np.concatenate([snapshots,new_snapshots],axis=1)
             spatial  = POD(snapshots,modes)[0]
         if method == "RandSVD":
-            snapshots = np.concatenate([snapshots,new_snapshots],axis=1)
             spatial  = randSVD(snapshots,modes,p,q)[0]
         if method == "SingleView":
             spatial,trash,storage = update_singleview(new_snapshots,storage)
-        spatial = spatial[:,1:]
     print("Selected Indices", sorted(indices))
     return (error, indices)
 
@@ -70,23 +68,40 @@ def ComputeROM(spatial,temporal,dx,times,a0):
     rom_matrices = MakeFluidMatrices(spatial,dx,verbosity=0)
     #scaling = ComputeDydtScaling(spatial, temporal, rom_matrices,times)
     t,a_rom,solver_output= SolveROM(rom_matrices,times,a0, verbosity=0) 
-    return a_rom
+    return a_rom.transpose()
 
         
-def ComputeROMerror(spatial,a_rom,snapshots_full,verbosity = 0):
-    error_matrix = snapshots_full - np.dot(spatial,a_rom)
-
+def ComputeROMerror(spatial,a_rom,snapshots_full,a_true,verbosity = 0, relative = True, error_type = "snapshot"):
+    if error_type == "POD":
+        error_matrix = a_rom-a_true
+    else :
+        error_matrix = snapshots_full - np.dot(spatial,a_rom.transpose())
+    if verbosity>0:
+        print("error_matrix.shape: ", error_matrix.shape)
+        print("np.linalg.norm(error_matrix): ", np.linalg.norm(error_matrix))
     if verbosity >1:
-       plt.plot(error_matrix[:,0])
+       plt.plot(error_matrix)
        plt.show()
     
-    error = np.sum(error_matrix**2,axis=0)    
+    if relative:
+        if error_type =="POD":
+            error = np.sqrt(np.sum(error_matrix**2,axis=1)/np.sum(a_true**2,axis =1 ))
+        else :
+            error = np.sqrt(np.sum(error_matrix**2,axis=0)/np.sum(snapshots_full**2,axis=0))    
+    else :
+        if error_type =="POD":
+            error = np.sqrt(np.sum(error_matrix**2,axis=1))
+        else :
+            error = np.sqrt(np.sum(error_matrix**2,axis=0))
     return error
 
-def UpdateSnapshots(snapshots_full, times_full,error,batchsize, verbosity =0):
+def UpdateSnapshots(snapshots_full, times_full,error, indices_unused,batchsize, verbosity =0):
+
+    snapshots_used = len(times_full)-len(indices_unused)
     if verbosity > 0:
         print("TOP ERRORS", sorted(error)[-batchsize:])
-    indices = sorted(range(len(error)), key=lambda x: error[x])[-batchsize:]
+    sorted_indices = sorted(indices_unused, key = lambda x: error[x-snapshots_used])
+    indices = sorted_indices[-batchsize:]
     new_snapshots = snapshots_full[:,indices]
     new_times = times_full[indices]
     return new_snapshots,new_times,np.array(indices)

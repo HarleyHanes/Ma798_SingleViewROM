@@ -20,16 +20,17 @@ import data
 
 #Load data
 location = "Ma798_SingleViewROM/Fiber_Data/"
-(full_data, phi, a, aves, times, xs)= data.load(location, time_steps=np.arange(120,220), verbosity=1)
+
+(full_data, phi, a, aves, times, xs)= data.load(location,time_steps=np.arange(30,600), k=6,verbosity=0)
 print("a.shape: ", a.shape)
 a0 = a[0,:]
 #Form ROM
-matrices = fluid_rom.MakeFluidMatrices(phi,xs[1]-xs[0], verbosity=2)
-fluid_rom.CheckDydt(a,phi, matrices,times, folder = "Ma798_SingleViewROM/figures/CheckDydt/", verbosity=2, plot = True)
+matrices = fluid_rom.MakeFluidMatrices(phi,xs[1]-xs[0], verbosity=0)
+fluid_rom.CheckDydt(a,phi, matrices,times, folder = "Ma798_SingleViewROM/figures/CheckDydt/", verbosity=0, plot = True)
 #Solve ROM
 #scaling = fluid_rom.ComputeDydtScaling(phi, a, matrices,times)
 plots.plot_spatial(phi,xs,phi.shape[1])
-(t,a_rom,solver_output)=fluid_rom.SolveROM(matrices,times, a0, verbosity=1)
+(t,a_rom,solver_output)=fluid_rom.SolveROM(matrices,times, a0, verbosity=0)
 a_rom=a_rom.transpose()
 a=a[0:a_rom.shape[0],:]
 #Compute ROM Error
@@ -46,6 +47,7 @@ plots.plot_temporal(a_rom,t,a_rom.shape[1],xlabel="t",ylabel="a", title="a(t) Co
 plots.plot_temporal(a,t,a_rom.shape[1],xlabel="t",ylabel="a", title="True a(t)", 
                     save_path= "Ma798_SingleViewROM/figures/ROMoutputs/a_true.pdf")
 
-plots.plot_error(a[1:,:],a_rom[1:,],t[1:],logy=True, title="Relative ROM Error",xlabel='t', ylabel='Error', 
+plots.plot_error(a[1:,:],a_rom[1:,],t[1:], logy=True,
+                    title="Relative ROM Error",xlabel='t', ylabel='Error', 
                     save_path= "Ma798_SingleViewROM/figures/ROMoutputs/ROM_error.pdf")
 

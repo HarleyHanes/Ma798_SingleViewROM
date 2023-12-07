@@ -6,7 +6,7 @@ from plots import *
 import matplotlib.pyplot as plt
 
 
-def load(location, time_steps=np.arange(0,202), plot = False,verbosity=0):
+def load(location, time_steps=np.arange(0,600), plot = False,verbosity=0 ,k=6):
     if verbosity>0:
         print("Loading Data")
 
@@ -27,7 +27,6 @@ def load(location, time_steps=np.arange(0,202), plot = False,verbosity=0):
 
     # POD
 
-    k = 6 # number of modes
 
     aves = data.mean(axis=0)
     #data = data - aves

@@ -68,7 +68,7 @@ def CheckDydt(temporal, spatial, matrices, times, folder="",verbosity=0, plot = 
     # Can get approximate derivatives from finite difference on temporal modes
     # Note: skip outer t_steps for analysis since we're using periodic deriv calc
     dydt_anticipated = ComputeDeriv(temporal, times[1]-times[0], deriv = 1, verbosity =0, periodic = False)
-    dydt_diff = (dydt_anticipated-dydt)/dydt_anticipated
+    dydt_diff = (dydt_anticipated-dydt)/np.max(dydt_anticipated, axis =0)
 
     if verbosity > 0:
         print("dydt.shape: ", dydt.shape)
@@ -81,17 +81,17 @@ def CheckDydt(temporal, spatial, matrices, times, folder="",verbosity=0, plot = 
         print("dydt_diff[0:10,:]: ", dydt_diff[0:10,:])
         
     if plot:
-        plots.plot_temporal(dydt_diff, times,dydt_diff.shape[1],
-                            ylabel = "$\\frac{da}{dt}$",
+        plots.plot_temporal(dydt_diff[1:-1], times[1:-1],dydt_diff.shape[1],
+                            ylabel = "Error",
                             xlabel = "$t$",
-                            title = "ROM and Anticipated $\\frac{da}{dt}$ Difference",
+                            title = "ROM and Anticipated $\\frac{da}{dt}$ Relative Error",
                             save_path = folder + "dydt_diff.pdf")
-        plots.plot_temporal(dydt_anticipated, times,dydt_anticipated.shape[1],
+        plots.plot_temporal(dydt_anticipated[1:-1], times[1:-1],dydt_anticipated.shape[1],
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
                             title = "Anticipated $\\frac{da}{dt}$",
                             save_path = folder + "dydt_anticipated.pdf")
-        plots.plot_temporal(dydt, times,dydt.shape[1],
+        plots.plot_temporal(dydt[1:-1], times[1:-1],dydt.shape[1],
                             ylabel = "$\\frac{da}{dt}$",
                             xlabel = "$t$",
                             title = "ROM $\\frac{da}{dt}$",
