@@ -33,13 +33,16 @@ def randSVD(A,k,p,q):
     M,S,Vt = np.linalg.svd(A @ Q, full_matrices = False)
     V = Q @ (Vt[:k,:]).T
 
+    print(M.shape,S.shape,Vt.shape,V.shape)
     spatial = M[:,:k]
-    temporal = np.dot(spatial.T,A)
+    temporal = V*S[:k]
 
-    return spatial, temporal.T
+    print(spatial.shape,temporal.shape)
+
+    return spatial, temporal
     
 
-def singleview(A, modes,verbosity=0, mode_multiplier = 6):
+def singleview(A, modes,verbosity=0, mode_multiplier = 2):
 
     if verbosity > 0:
         print("A.shape: ", A.shape)
@@ -63,9 +66,14 @@ def singleview(A, modes,verbosity=0, mode_multiplier = 6):
     X = np.dot(Psi,Q)
 
     B = np.linalg.lstsq(X,W,rcond=None)[0]
-    B = np.dot(Q,B)
 
     spatial,temporal = POD(B,modes)
+    spatial = np.dot(Q,spatial)
+
+    B = np.dot(Q,B)
+    spatial2,temporal2 = POD(B,modes)
+
+    print(np.linalg.norm(abs(spatial)-abs(spatial2))/np.linalg.norm(spatial))
 
     storage = {"Psi": Psi, "Y": Y, "W": W,"modes":modes, "l1": l1, "l2": l2}
     
@@ -91,9 +99,14 @@ def update_singleview(A,storage,verbosity=0):
     X = np.dot(storage["Psi"],Q)
                        
     B = np.linalg.lstsq(X,W,rcond=None)[0]
-    B = np.dot(Q,B)
 
     spatial,temporal = POD(B,storage["modes"])
+    spatial = np.dot(Q,spatial)
+
+    B = np.dot(Q,B)
+    spatial2,temporal2 = POD(B,storage["modes"])
+
+    print(np.linalg.norm(abs(spatial)-abs(spatial2))/np.linalg.norm(spatial))
 
     storage.update({"Y": Y, "W": W})
 
