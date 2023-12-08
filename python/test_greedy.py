@@ -20,17 +20,18 @@ from rom_updating import *
 
 location = "Ma798_SingleViewROM/Fiber_Data/"
 
-t_start=30
-n_initial_snapshots = 3
+t_start=3
+n_initial_snapshots = 2
 n_modes = 4
-iterations = 25
-batchsize= 3
+iterations = 15
+batchsize= 2
+
 
 x = np.loadtxt(location+'xs.dat')
 print("x.shape: ", x.shape)
 times = np.loadtxt(location+'times.dat')[t_start:]
-times_initial = times[:n_initial_snapshots]
-indices = np.arange(n_initial_snapshots, dtype = int)
+indices = np.random.permutation(len(times))[:n_initial_snapshots]
+times_initial = times[indices]
 print("times.shape: ", times.shape)
 snapshots_full = np.loadtxt(location+'data.dat')[:,t_start:]
 print("snapshots_full.shape: ", snapshots_full.shape)
@@ -40,7 +41,7 @@ averages=np.reshape(averages,(averages.size,1))
 
 #snapshots_full=snapshots_full-averages
 
-snapshots = snapshots_full[:,0:n_initial_snapshots]
+snapshots = snapshots_full[:,indices]
 
 
 #(full_data, phi, a, aves, times, xs)= data.load(location,time_steps=np.arange(t_start,t_start+n_initial_snapshots), k=6,verbosity=0)
@@ -49,7 +50,7 @@ snapshots = snapshots_full[:,0:n_initial_snapshots]
 (error_RandSVD, snapshots_RandSVD) = IterativeOptimization(snapshots, snapshots_full, indices, n_modes, times_initial,times, x[1]-x[0], batchsize= batchsize, iterations = iterations, method="RandSVD")
 (error_SingleView, snapshots_SingleView) = IterativeOptimization(snapshots, snapshots_full, indices, n_modes, times_initial, times, x[1]-x[0], batchsize= batchsize, iterations = iterations, method="SingleView")
 error = np.array([error_SVD, error_RandSVD, error_SingleView])
-error_mean_time= np.sqrt(np.mean(error,axis=2))
+error_mean_time= np.max(np.abs(error),axis=2)
 print("error.shape: ", error.shape)
 print("error_mean_time.shape: ", error_mean_time.shape)
 
@@ -64,7 +65,7 @@ plots.plot_method_error(error_ratios.transpose(), np.arange(iterations), xlabel 
                         figsize = (5,3.5))
 
 plots.plot_method_error(error_mean_time.transpose(), np.arange(iterations), xlabel = "Greedy Sampling Iterations",
-                        ylabel = "Mean Relative Error", legend= ("Determinisitc","Randomized","Single View"),
+                        ylabel = "Maximum Absolute Relative Error", legend= ("Determinisitc","Randomized","Single View"),
                         save_path = "Ma798_SingleViewROM/figures/GreedySampling/convergence_error.pdf",
                         figsize = (5,3.5))
 

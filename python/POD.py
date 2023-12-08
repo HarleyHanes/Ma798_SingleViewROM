@@ -39,7 +39,7 @@ def randSVD(A,k,p,q):
     return spatial, temporal.T
     
 
-def singleview(A, modes,verbosity=0, mode_multiplier = 6):
+def singleview(A, modes,verbosity=0, mode_multiplier = 2):
 
     if verbosity > 0:
         print("A.shape: ", A.shape)

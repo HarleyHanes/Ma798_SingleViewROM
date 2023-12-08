@@ -79,6 +79,61 @@ def plot_temporal(temporal,times,k, xlabel = "null", ylabel = "null", title = "n
         plt.savefig(save_path)
         plt.show()
         
+def compare_temporal(temporal1,temporal2, times,k, xlabel = "null", ylabel = "null",
+                     legend="null", title = "null", save_path = "null",figsize=(6,4)):
+
+    ks = int(np.ceil(k**.5))
+    ks2 = ks
+
+    if (ks*(ks2-1) >= k):
+        ks2 = ks2-1
+    fig, axs= plt.subplots(ks,ks2)
+    fig.set_size_inches(figsize[0],figsize[1])
+    print("ks", ks)
+    print("ks2", ks2)
+    if k>3:
+        for i in range(k):
+            ax_iterate=[i // ks2 , i % ks2]
+            axs[ax_iterate[0], ax_iterate[1]].plot(times,temporal1[:,i])
+            axs[ax_iterate[0], ax_iterate[1]].plot(times,temporal2[:,i],linestyle=":")
+            if xlabel != "null" and (i>=(ks-1)*ks2): 
+                axs[ax_iterate[0], ax_iterate[1]].set_xlabel(xlabel)
+            if ylabel != "null" and (i % ks2 ==0):
+                axs[ax_iterate[0], ax_iterate[1]].set_ylabel(ylabel, rotation="horizontal")
+            if legend !="null" and ax_iterate == [0,ks2-1]:
+                axs[ax_iterate[0], ax_iterate[1]].legend(legend)
+            axs[ax_iterate[0], ax_iterate[1]].set_title("Mode " + str(i+1))
+        #Title feature not working now. Need to figure out how to put title over whole fig rather than just in subplot
+    elif k>1 : 
+        for i in range(k):
+            
+            axs[i].plot(times,temporal1[:,i])
+            axs[i].plot(times,temporal2[:,i],linestyle=":")
+            if xlabel != "null" and (i==0): 
+                axs[i].set_xlabel(xlabel)
+            if ylabel != "null":
+                axs[i].set_ylabel(ylabel, rotation="horizontal")
+            axs[i].title("Mode " + str(i+1))
+        #Title feature not working now. Need to figure out how to put title over whole fig rather than just in subplot
+    else :
+        axs.plot(times,temporal1)
+        axs.plot(times,temporal2,linstyle=":")
+        if xlabel != "null": 
+            axs.set_xlabel(xlabel)
+        if ylabel != "null":
+            axs.set_ylabel(ylabel, rotation="horizontal")
+        #Title feature not working now. Need to figure out how to put title over whole fig rather than just in subplot
+    if title != "null":
+        plt.suptitle(title)
+    plt.tight_layout()
+    if save_path == "null":
+        plt.show()
+    else :
+        plt.savefig(save_path)
+        plt.show()
+        
+        
+
 def plot_error(temporal_true, temporal_rom, times, scaling="pointwise", final_snapshot_iter = "null", logy= False,
                xlabel = "null", ylabel = "null", title = "null",  save_path = "null", legend="null",figsize = (4,3.3)):
         
@@ -123,7 +178,7 @@ def plot_method_error(errors,iterations,legend="null", xlabel = "null", ylabel =
     linestyles = ['-','--',':','-.']
     for i in range(errors.shape[1]):
         plt.plot(iterations, errors[:,i],linestyle = linestyles[i])
-    plt.title("ROM error with Iterative Bases")
+    plt.title("ROM Error with Iterative Bases")
     if legend!= "null":
         plt.legend(legend)
     if xlabel != "null":

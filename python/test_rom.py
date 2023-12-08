@@ -47,6 +47,9 @@ plots.plot_temporal(a_rom,t,a_rom.shape[1],xlabel="t",ylabel="a", title="a(t) Co
 plots.plot_temporal(a,t,a_rom.shape[1],xlabel="t",ylabel="a", title="True a(t)", 
                     save_path= "Ma798_SingleViewROM/figures/ROMoutputs/a_true.pdf")
 
+plots.compare_temporal(a[400:500,:],a_rom[400:500,:],t[400:500],a_rom.shape[1],xlabel="t",ylabel="a", title="True and Computed a(t)", legend=("True","ROM"),
+                    save_path= "Ma798_SingleViewROM/figures/ROMoutputs/a_comparison.pdf",figsize= (7.5,4))
+
 plots.plot_error(a[1:,:],a_rom[1:,],t[1:], logy=True,
                     title="Relative ROM Error",xlabel='t', ylabel='Error', 
                     save_path= "Ma798_SingleViewROM/figures/ROMoutputs/ROM_error.pdf")
